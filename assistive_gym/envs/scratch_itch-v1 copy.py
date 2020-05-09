@@ -5,9 +5,13 @@ import pybullet as p
 
 from .env import AssistiveEnv
 
+import traceback
+
 class ScratchItchEnv(AssistiveEnv):
     def __init__(self, robot_type='pr2', human_control=False):
+        print("called scratch itch init")
         super(ScratchItchEnv, self).__init__(robot_type=robot_type, task='scratch_itch', human_control=human_control, frame_skip=5, time_step=0.02, action_robot_len=7, action_human_len=(10 if human_control else 0), obs_robot_len=30, obs_human_len=(34 if human_control else 0))
+        self.num_resets = 0
 
     def step(self, action):
         self.take_step(action, robot_arm='left', gains=self.config('robot_gains'), forces=self.config('robot_forces'), human_gains=0.05)
@@ -36,7 +40,10 @@ class ScratchItchEnv(AssistiveEnv):
         if self.gui and tool_force_at_target > 0:
             print('Task success:', self.task_success, 'Tool force at target:', tool_force_at_target, reward_force_scratch)
 
-        info = {'total_force_on_human': total_force_on_human, 'task_success': int(self.task_success >= self.config('task_success_threshold')), 'action_robot_len': self.action_robot_len, 'action_human_len': self.action_human_len, 'obs_robot_len': self.obs_robot_len, 'obs_human_len': self.obs_human_len}
+        info = {'total_force_on_human': total_force_on_human, 'task_success': self.task_success,\
+        # info = {'total_force_on_human': total_force_on_human, 'task_success': int(self.task_success >= self.config('task_success_threshold')),\
+            'action_robot_len': self.action_robot_len, 'action_human_len': self.action_human_len, 'obs_robot_len': self.obs_robot_len, 'obs_human_len': self.obs_human_len}
+        # info.update({'tool_pos': tool_pos, 'torso_pos': np.array(p.getLinkState(self.robot, 0, computeForwardKinematics=True, physicsClientId=self.id)[0]), 'real_step': self.real_step, 'id':self.id, 'target_pos':self.target_pos})
         done = False
 
         return obs, reward, done, info
@@ -78,7 +85,6 @@ class ScratchItchEnv(AssistiveEnv):
         shoulder_pos, shoulder_orient = p.getLinkState(self.human, 5, computeForwardKinematics=True, physicsClientId=self.id)[:2]
         elbow_pos, elbow_orient = p.getLinkState(self.human, 7, computeForwardKinematics=True, physicsClientId=self.id)[:2]
         wrist_pos, wrist_orient = p.getLinkState(self.human, 9, computeForwardKinematics=True, physicsClientId=self.id)[:2]
-
         robot_obs = np.concatenate([tool_pos-torso_pos, tool_orient, tool_pos - self.target_pos, self.target_pos-torso_pos, robot_joint_positions, shoulder_pos-torso_pos, elbow_pos-torso_pos, wrist_pos-torso_pos, forces]).ravel()
         if self.human_control:
             human_obs = np.concatenate([tool_pos-human_pos, tool_orient, tool_pos - self.target_pos, self.target_pos-human_pos, human_joint_positions, shoulder_pos-human_pos, elbow_pos-human_pos, wrist_pos-human_pos, forces_human]).ravel()
@@ -88,6 +94,60 @@ class ScratchItchEnv(AssistiveEnv):
         return np.concatenate([robot_obs, human_obs]).ravel()
 
     def reset(self):
+        if not self.num_resets:
+            self.num_resets += 1
+            return self._first_reset()
+        
+        self.setup_timing()
+        self.task_success = 0
+        self.prev_target_contact_pos = np.zeros(3)
+
+        p.restoreState(self.initial_state)
+        p.removeBody(self.human)
+        p.removeBody(self.target)
+        self.human, self.human_lower_limits, self.human_upper_limits = self.world_creation.init_human(static_human_base=True, human_impairment='random', print_joints=False, gender='random')
+
+        joints_positions = [(3, np.deg2rad(30)), (6, np.deg2rad(-90)), (16, np.deg2rad(-90)), (28, np.deg2rad(-90)), (31, np.deg2rad(80)), (35, np.deg2rad(-90)), (38, np.deg2rad(80))]
+        self.human_controllable_joint_indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        self.world_creation.setup_human_joints(self.human, joints_positions, self.human_controllable_joint_indices, use_static_joints=True, human_reactive_force=None if self.human_control else 1, human_reactive_gain=0.01)
+        p.resetBasePositionAndOrientation(self.human, [0, 0.03, 0.89 if self.gender == 'male' else 0.86], [0, 0, 0, 1], physicsClientId=self.id)
+        human_joint_states = p.getJointStates(self.human, jointIndices=self.human_controllable_joint_indices, physicsClientId=self.id)
+        self.target_human_joint_positions = np.array([x[0] for x in human_joint_states])
+        self.human_lower_limits = self.human_lower_limits[self.human_controllable_joint_indices]
+        self.human_upper_limits = self.human_upper_limits[self.human_controllable_joint_indices]
+
+        shoulder_pos, shoulder_orient = p.getLinkState(self.human, 5, computeForwardKinematics=True, physicsClientId=self.id)[:2]
+        elbow_pos, elbow_orient = p.getLinkState(self.human, 7, computeForwardKinematics=True, physicsClientId=self.id)[:2]
+        wrist_pos, wrist_orient = p.getLinkState(self.human, 9, computeForwardKinematics=True, physicsClientId=self.id)[:2]
+
+        if self.robot_type == 'pr2':
+            p.removeBody(self.tool)
+            target_pos = np.array([-0.55, 0, 0.8]) + self.np_random.uniform(-0.05, 0.05, size=3)
+            target_orient = np.array(p.getQuaternionFromEuler(np.array([0, 0, 0]), physicsClientId=self.id))
+            self.position_robot_toc(self.robot, 76, [(target_pos, target_orient)], [(shoulder_pos, None), (elbow_pos, None), (wrist_pos, None)], self.robot_left_arm_joint_indices, self.robot_lower_limits, self.robot_upper_limits, ik_indices=range(29, 29+7), pos_offset=np.array([0.1, 0, 0]), max_ik_iterations=200, step_sim=True, check_env_collisions=False, human_joint_indices=self.human_controllable_joint_indices, human_joint_positions=self.target_human_joint_positions)
+            self.world_creation.set_gripper_open_position(self.robot, position=0.25, left=True, set_instantly=True)
+            self.tool = self.world_creation.init_tool(self.robot, mesh_scale=[0.001]*3, pos_offset=[0, 0, 0], orient_offset=p.getQuaternionFromEuler([0, 0, 0], physicsClientId=self.id), maximal=False)
+        elif self.robot_type != 'jaco':
+            p.removeBody(self.tool)
+            target_pos = np.array([-0.55, 0, 0.8]) + self.np_random.uniform(-0.05, 0.05, size=3)
+            target_orient = p.getQuaternionFromEuler(np.array([0, np.pi/2.0, 0]), physicsClientId=self.id)
+            if self.robot_type == 'baxter':
+                self.position_robot_toc(self.robot, 48, [(target_pos, target_orient)], [(shoulder_pos, None), (elbow_pos, None), (wrist_pos, None)], self.robot_left_arm_joint_indices, self.robot_lower_limits, self.robot_upper_limits, ik_indices=range(10, 17), pos_offset=np.array([0, 0, 0.975]), max_ik_iterations=200, step_sim=True, check_env_collisions=False, human_joint_indices=self.human_controllable_joint_indices, human_joint_positions=self.target_human_joint_positions)
+            else:
+                self.position_robot_toc(self.robot, 19, [(target_pos, target_orient)], [(shoulder_pos, None), (elbow_pos, None), (wrist_pos, None)], self.robot_left_arm_joint_indices, self.robot_lower_limits, self.robot_upper_limits, ik_indices=[0, 2, 3, 4, 5, 6, 7], pos_offset=np.array([-0.1, 0, 0.975]), max_ik_iterations=200, step_sim=True, check_env_collisions=False, human_joint_indices=self.human_controllable_joint_indices, human_joint_positions=self.target_human_joint_positions)
+            self.world_creation.set_gripper_open_position(self.robot, position=0.015, left=True, set_instantly=True)
+            self.tool = self.world_creation.init_tool(self.robot, mesh_scale=[0.001]*3, pos_offset=[0, 0.125, 0], orient_offset=p.getQuaternionFromEuler([0, 0, np.pi/2.0], physicsClientId=self.id), maximal=False)
+
+        self.generate_target()
+
+        p.setGravity(0, 0, -1, body=self.human, physicsClientId=self.id)
+
+        self.initial_state = p.saveState()
+
+        return self._get_obs([0], [0, 0])
+
+
+    def _first_reset(self):
         self.setup_timing()
         self.task_success = 0
         self.prev_target_contact_pos = np.zeros(3)
@@ -142,6 +202,8 @@ class ScratchItchEnv(AssistiveEnv):
         # Enable rendering
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1, physicsClientId=self.id)
 
+        self.initial_state = p.saveState()
+
         return self._get_obs([0], [0, 0])
 
     def generate_target(self):
@@ -165,4 +227,4 @@ class ScratchItchEnv(AssistiveEnv):
         target_pos, target_orient = p.multiplyTransforms(arm_pos, arm_orient, self.target_on_arm, [0, 0, 0, 1], physicsClientId=self.id)
         self.target_pos = np.array(target_pos)
         p.resetBasePositionAndOrientation(self.target, self.target_pos, [0, 0, 0, 1], physicsClientId=self.id)
-        
+

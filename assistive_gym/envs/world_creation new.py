@@ -52,18 +52,7 @@ class WorldCreation:
         else:
             furniture = None
 
-        # Choose gender
-        if gender not in ['male', 'female']:
-            gender = self.np_random.choice(['male', 'female'])
-        # Specify human impairments
-        if human_impairment == 'random':
-            human_impairment = self.np_random.choice(['none', 'limits', 'weakness', 'tremor'])
-        elif human_impairment == 'no_tremor':
-            human_impairment = self.np_random.choice(['none', 'limits', 'weakness'])
-        self.human_impairment = human_impairment
-        self.human_limit_scale = 1.0 if human_impairment != 'limits' else self.np_random.uniform(0.5, 1.0)
-        self.human_strength = 1.0 if human_impairment != 'weakness' else self.np_random.uniform(0.25, 1.0)
-        human, human_lower_limits, human_upper_limits = self.init_human(static_human_base, self.human_limit_scale, print_joints, gender=gender)
+        human,human_lower_limits,human_upper_limits = self.init_human(human_impairment,static_human_base,print_joints,gender)
 
         p.setTimeStep(self.time_step, physicsClientId=self.id)
         # Disable real time simulation so that the simulation only advances when we call stepSimulation
@@ -83,10 +72,21 @@ class WorldCreation:
             robot, robot_lower_limits, robot_upper_limits, robot_right_arm_joint_indices, robot_left_arm_joint_indices = None, None, None, None, None
 
         return human, furniture, robot, robot_lower_limits, robot_upper_limits, human_lower_limits, human_upper_limits, robot_right_arm_joint_indices, robot_left_arm_joint_indices, gender
+    
+    def init_human(self, human_impairment = 'random', static_human_base=False, print_joints=False, gender='random'):     
+        # Choose gender
+        if gender not in ['male', 'female']:
+            gender = self.np_random.choice(['male', 'female'])
+        # Specify human impairments
+        if human_impairment == 'random':
+            human_impairment = self.np_random.choice(['none', 'limits', 'weakness', 'tremor'])
+        elif human_impairment == 'no_tremor':
+            human_impairment = self.np_random.choice(['none', 'limits', 'weakness'])
+        self.human_impairment = human_impairment
+        self.human_limit_scale = 1.0 if human_impairment != 'limits' else self.np_random.uniform(0.5, 1.0)
+        self.human_strength = 1.0 if human_impairment != 'weakness' else self.np_random.uniform(0.25, 1.0)
 
-
-    def init_human(self, static_human_base=False, limit_scale=1.0, print_joints=False, gender='random'):
-        human = self.human_creation.create_human(static=static_human_base, limit_scale=limit_scale, specular_color=[0.1, 0.1, 0.1], gender=gender, config=self.config)
+        human = self.human_creation.create_human(static=static_human_base, limit_scale=self.human_limit_scale, specular_color=[0.1, 0.1, 0.1], gender=gender, config=self.config)
         if print_joints:
             self.print_joint_info(human, show_fixed=True)
 
@@ -374,4 +374,3 @@ class WorldCreation:
                 print(p.getJointInfo(body, j, physicsClientId=self.id))
                 joint_names.append((j, p.getJointInfo(body, j, physicsClientId=self.id)[1]))
         print(joint_names)
-        
