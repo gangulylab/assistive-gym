@@ -79,6 +79,8 @@ class ScratchItchEnv(AssistiveEnv):
         elbow_pos, elbow_orient = p.getLinkState(self.human, 7, computeForwardKinematics=True, physicsClientId=self.id)[:2]
         wrist_pos, wrist_orient = p.getLinkState(self.human, 9, computeForwardKinematics=True, physicsClientId=self.id)[:2]
 
+        print(torso_pos)
+
         robot_obs = np.concatenate([tool_pos-torso_pos, tool_orient, tool_pos - self.target_pos, self.target_pos-torso_pos, robot_joint_positions, shoulder_pos-torso_pos, elbow_pos-torso_pos, wrist_pos-torso_pos, forces]).ravel()
         if self.human_control:
             human_obs = np.concatenate([tool_pos-human_pos, tool_orient, tool_pos - self.target_pos, self.target_pos-human_pos, human_joint_positions, shoulder_pos-human_pos, elbow_pos-human_pos, wrist_pos-human_pos, forces_human]).ravel()
@@ -150,7 +152,8 @@ class ScratchItchEnv(AssistiveEnv):
             self.limb, length, radius = [[5, 0.279, 0.043], [7, 0.257, 0.033]][self.np_random.randint(2)]
         else:
             self.limb, length, radius = [[5, 0.264, 0.0355], [7, 0.234, 0.027]][self.np_random.randint(2)]
-        self.target_on_arm = self.util.point_on_capsule(p1=np.array([0, 0, 0]), p2=np.array([0, 0, -length]), radius=radius, theta_range=(0, np.pi*2))
+        # self.target_on_arm = self.util.point_on_capsule(p1=np.array([0, 0, 0]), p2=np.array([0, 0, -length]), radius=radius, theta_range=(0, np.pi*2))
+        self.target_on_arm = [[0.00777006, 0.04229215, -0.24328119],[0.00100218, 0.02698139, -0.21629794]][np.random.randint(0,2)]
         arm_pos, arm_orient = p.getLinkState(self.human, self.limb, computeForwardKinematics=True, physicsClientId=self.id)[:2]
         target_pos, target_orient = p.multiplyTransforms(arm_pos, arm_orient, self.target_on_arm, [0, 0, 0, 1], physicsClientId=self.id)
 

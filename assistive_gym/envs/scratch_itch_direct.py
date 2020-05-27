@@ -18,26 +18,27 @@ class ScratchItchJacoDirectEnv(ScratchItchJacoEnv):
         obs,r,done,info = super().step(action)
         self._update_pos()
 
-        click = norm(obs[7:10]) < 0.025
-        self.click = click        
+        # click = norm(obs[7:10]) < 0.025
+        # self.click = click        
 
         return obs,r,done,info
 
     def reset(self):
         obs = super().reset()
 
-        self.click = False
+        # self.click = False
 
         # self.real_step = [True]
 
         self._update_pos()
         
-        org_tool_pos = deepcopy(self.tool_pos)
-        sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=0.01, rgbaColor=[10, 255, 10, 1], physicsClientId=self.id)
-        start = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=-1, baseVisualShapeIndex=sphere_visual,\
-             basePosition=org_tool_pos, useMaximalCoordinates=False, physicsClientId=self.id)
+        if self.gui:
+            org_tool_pos = deepcopy(self.tool_pos)
+            sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=0.01, rgbaColor=[10, 255, 10, 1], physicsClientId=self.id)
+            start = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=-1, baseVisualShapeIndex=sphere_visual,\
+                 basePosition=org_tool_pos, useMaximalCoordinates=False, physicsClientId=self.id)
 
-        self.pred_visual = deque([-1]*10,10)
+            self.pred_visual = deque([-1]*10,10)
 
         return obs
 
@@ -52,13 +53,14 @@ class ScratchItchJacoDirectEnv(ScratchItchJacoEnv):
 
 
     def target2obs(self, pred_target, obs):
-        sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=0.01, rgbaColor=[250, 110, 0, 1], physicsClientId=self.id)
-        new_pred_visual = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=-1, baseVisualShapeIndex=sphere_visual,\
-             basePosition=pred_target, useMaximalCoordinates=False, physicsClientId=self.id)
-        p.removeBody(self.pred_visual[0])
-        self.pred_visual.append(new_pred_visual)
+        if self.gui:
+            sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=0.01, rgbaColor=[250, 110, 0, 1], physicsClientId=self.id)
+            new_pred_visual = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=-1, baseVisualShapeIndex=sphere_visual,\
+                basePosition=pred_target, useMaximalCoordinates=False, physicsClientId=self.id)
+            p.removeBody(self.pred_visual[0])
+            self.pred_visual.append(new_pred_visual)
 
-        print(norm(self.target_pos - pred_target))
+        # print(norm(self.target_pos - pred_target))
 
         return np.concatenate((obs[0], self.tool_pos-pred_target, pred_target-self.torso_pos, obs[1]))
 

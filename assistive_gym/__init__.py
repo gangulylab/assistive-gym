@@ -8,6 +8,13 @@ register(
     max_episode_steps=200,
 )
 
+# Laptop Jaco
+register(
+    id='LaptopJaco-v0',
+    entry_point='assistive_gym.envs:LaptopJacoEnv',
+    max_episode_steps=200,
+)
+
 # Scratch Itch PR2
 register(
     id='ScratchItchPR2-v0',
@@ -29,7 +36,7 @@ register(
     max_episode_steps=200,
 )
 
-# Scratch Itch Jaco
+# Laptop Jaco
 register(
     id='ScratchItchJaco-v0',
     entry_point='assistive_gym.envs:ScratchItchJacoEnv',
@@ -52,7 +59,7 @@ register(
 
 # Scratch Itch jaco with direct goal prediction
 register(
-    id='ScratchItchJacoDirect-v0',
+    id='ScratchItchJaco-v1',
     entry_point='assistive_gym.envs:ScratchItchJacoDirectEnv',
     max_episode_steps=200,
 )
@@ -194,6 +201,13 @@ register(
 register(
     id='DrinkingJacoHuman-v0',
     entry_point='assistive_gym.envs:DrinkingJacoHumanEnv',
+    max_episode_steps=200,
+)
+
+# Feeding Oracle controlled
+register(
+    id='FeedingJaco-v1',
+    entry_point='assistive_gym.envs:FeedingJacoDirectEnv',
     max_episode_steps=200,
 )
 
