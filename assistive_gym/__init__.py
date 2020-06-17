@@ -43,20 +43,6 @@ register(
     max_episode_steps=200,
 )
 
-# Scratch Itch Jaco Oracle
-register(
-    id='ScratchItchJacoOracle-v0',
-    entry_point='assistive_gym.envs:ScratchItchJacoOracleEnv',
-    max_episode_steps=200,
-)
-
-# Scratch Itch Jaco From Simple 2D Environment
-register(
-    id='ScratchItchJacoSimple2d-v0',
-    entry_point='assistive_gym.envs:ScratchItchJacoSimple2dEnv',
-    max_episode_steps=200,
-)
-
 # Scratch Itch jaco with direct goal prediction
 register(
     id='ScratchItchJaco-v1',

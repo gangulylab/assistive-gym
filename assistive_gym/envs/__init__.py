@@ -10,3 +10,5 @@ from assistive_gym.envs.scratch_itch_robots import ScratchItchPR2Env, ScratchItc
 from assistive_gym.envs.scratch_itch_direct import ScratchItchJacoDirectEnv
 
 from assistive_gym.envs.feeding_direct import FeedingJacoDirectEnv
+
+from assistive_gym.envs.test import TestEnv

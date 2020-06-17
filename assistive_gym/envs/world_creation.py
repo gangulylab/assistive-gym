@@ -17,7 +17,7 @@ class WorldCreation:
         self.human_strength = 1.0
         self.human_tremors = np.zeros(10)
 
-    def create_new_world(self, furniture_type='wheelchair', static_human_base=False, human_impairment='random', print_joints=False, gender='random'):
+    def create_new_world(self, furniture_type='wheelchair', init_human=True, static_human_base=False, human_impairment='random', print_joints=False, gender='random'):
         p.resetSimulation(physicsClientId=self.id)
 
         # Configure camera position
@@ -52,18 +52,24 @@ class WorldCreation:
         else:
             furniture = None
 
-        # Choose gender
-        if gender not in ['male', 'female']:
-            gender = self.np_random.choice(['male', 'female'])
-        # Specify human impairments
-        if human_impairment == 'random':
-            human_impairment = self.np_random.choice(['none', 'limits', 'weakness', 'tremor'])
-        elif human_impairment == 'no_tremor':
-            human_impairment = self.np_random.choice(['none', 'limits', 'weakness'])
-        self.human_impairment = human_impairment
-        self.human_limit_scale = 1.0 if human_impairment != 'limits' else self.np_random.uniform(0.5, 1.0)
-        self.human_strength = 1.0 if human_impairment != 'weakness' else self.np_random.uniform(0.25, 1.0)
-        human, human_lower_limits, human_upper_limits = self.init_human(static_human_base, self.human_limit_scale, print_joints, gender=gender)
+        if init_human:
+            # Choose gender
+            if gender not in ['male', 'female']:
+                gender = self.np_random.choice(['male', 'female'])
+            # Specify human impairments
+            if human_impairment == 'random':
+                human_impairment = self.np_random.choice(['none', 'limits', 'weakness', 'tremor'])
+            elif human_impairment == 'no_tremor':
+                human_impairment = self.np_random.choice(['none', 'limits', 'weakness'])
+            self.human_impairment = human_impairment
+            self.human_limit_scale = 1.0 if human_impairment != 'limits' else self.np_random.uniform(0.5, 1.0)
+            self.human_strength = 1.0 if human_impairment != 'weakness' else self.np_random.uniform(0.25, 1.0)
+            human, human_lower_limits, human_upper_limits = self.init_human(static_human_base, self.human_limit_scale, print_joints, gender=gender)
+        else:
+            self.human_impairment = 'none'
+            self.human_limit_scale = 1.0
+            self.human_strength = 1.0
+            human,human_lower_limits,human_upper_limits = -1,[],[]
 
         p.setTimeStep(self.time_step, physicsClientId=self.id)
         # Disable real time simulation so that the simulation only advances when we call stepSimulation
@@ -81,7 +87,7 @@ class WorldCreation:
             robot, robot_lower_limits, robot_upper_limits, robot_right_arm_joint_indices, robot_left_arm_joint_indices = self.init_kinova_gen3(print_joints)
         else:
             robot, robot_lower_limits, robot_upper_limits, robot_right_arm_joint_indices, robot_left_arm_joint_indices = None, None, None, None, None
-
+        
         return human, furniture, robot, robot_lower_limits, robot_upper_limits, human_lower_limits, human_upper_limits, robot_right_arm_joint_indices, robot_left_arm_joint_indices, gender
 
 

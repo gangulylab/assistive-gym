@@ -12,7 +12,7 @@
       <lateral_friction value="1.0"/>
     </contact> -->
     <inertial>
-      <mass value=".05"/>
+      <mass value="5"/>
       <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
     </inertial>
     <visual>
@@ -25,7 +25,7 @@
     <collision>
       <origin xyz="0 0 .35" rpy = "0 0 0"/>
       <geometry>
-			  <box size="0.1 0.1 0.1"/>
+			  <mesh filename="body_visual.dae"/>
       </geometry>
     </collision>
     
@@ -37,7 +37,7 @@
     <inertial>
       <!-- <origin xyz="0.005 0 .122" rpy="0 0 0"/> -->
       <origin xyz="0.005 0 .50" rpy="1.5 0 0"/>
-      <mass value=".01"/>
+      <mass value="1"/>
       <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
     </inertial>
     <visual>
@@ -50,7 +50,7 @@
     <collision>
       <origin xyz="1.2 0 1.5" rpy="0 1.7 0"/>
       <geometry>
-			  <box size="0.1 0.1 0.1"/>
+			  <mesh filename="screen_visual.dae"/>
       </geometry>
     </collision>
   </link>
@@ -59,6 +59,6 @@
       <child link="screen_link"/>
       <axis xyz="0 1 0"/>
       <limit lower="0" upper="3.14" effort="100" velocity="100"/>
-      <dynamics dampling="0" friction="1.0"/>
+      <dynamics dampling="0" friction=".01"/>
   </joint>
 </robot>
