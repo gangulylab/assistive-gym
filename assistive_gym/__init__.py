@@ -15,6 +15,20 @@ register(
     max_episode_steps=200,
 )
 
+# Light Switch Jaco
+register(
+    id='LightSwitchJaco-v0',
+    entry_point='assistive_gym.envs:LightSwitchJacoEnv',
+    max_episode_steps=200,
+)
+
+# Reach Jaco
+register(
+    id='ReachJaco-v0',
+    entry_point='assistive_gym.envs:ReachJacoEnv',
+    max_episode_steps=200,
+)
+
 # Scratch Itch PR2
 register(
     id='ScratchItchPR2-v0',
@@ -36,7 +50,7 @@ register(
     max_episode_steps=200,
 )
 
-# Laptop Jaco
+# Scratch Itch Jaco
 register(
     id='ScratchItchJaco-v0',
     entry_point='assistive_gym.envs:ScratchItchJacoEnv',

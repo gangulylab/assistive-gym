@@ -1,4 +1,7 @@
 from .laptop import LaptopJacoEnv
+from .light_switch import LightSwitchJacoEnv
+from .reach import ReachJacoEnv
+from .scratch_itch_robots import ScratchItchJacoEnv
 import numpy as np
 import pybullet as p
 import gym
@@ -15,6 +18,9 @@ class TestEnv:
 		if isinstance(env,str):
 			self.env = {
 				"LaptopJaco-v0": LaptopJacoEnv,
+				"LightSwitchJaco-v0": LightSwitchJacoEnv,
+				"ReachJaco-v0": ReachJacoEnv,
+				"ScratchItchJaco-v0": ScratchItchJacoEnv,
 			}[env]()
 		else:
 			self.env = env
@@ -25,7 +31,7 @@ class TestEnv:
 		if action not in [LEFT,RIGHT,FORWARD,BACKWARD,UP,DOWN]:
 			return None,0,False,{}
 
-		curr_pos = np.array(p.getLinkState(self.env.robot, 7, computeForwardKinematics=True, physicsClientId=self.env.id)[0])
+		curr_pos = np.array(p.getLinkState(self.env.robot, 13, computeForwardKinematics=True, physicsClientId=self.env.id)[0])
 		joint_states = p.getJointStates(self.env.robot, jointIndices=self.env.robot_left_arm_joint_indices, physicsClientId=self.env.id)
 		joint_positions = np.array([x[0] for x in joint_states])
 		
@@ -39,7 +45,7 @@ class TestEnv:
 		}[action]*.5
 		new_pos = self.env.target_pos
 
-		new_joint_positions = np.array(p.calculateInverseKinematics(self.env.robot, 11, new_pos, physicsClientId=self.env.id))
+		new_joint_positions = np.array(p.calculateInverseKinematics(self.env.robot, 13, new_pos, physicsClientId=self.env.id))
 		new_joint_positions = new_joint_positions[:7]
 		action = new_joint_positions - joint_positions
 
@@ -52,13 +58,6 @@ class TestEnv:
 
 	def reset(self):
 		obs = self.env.reset()
-
-		# switch_pos = [0,-.5,1]
-		# switch_scale = .0005
-		# on_off = True
-		# switch_file = 'on_switch.urdf' if on_off else 'off_switch.urdf'
-		# self.light_switch = p.loadURDF(os.path.join(self.env.world_creation.directory, 'light_switch', switch_file), basePosition=switch_pos, baseOrientation=p.getQuaternionFromEuler([-np.pi/2, 0, 0], physicsClientId=self.env.id),\
-		# 	 physicsClientId=self.env.id,globalScaling=switch_scale)
 
 		return obs
 

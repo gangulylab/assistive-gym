@@ -8,9 +8,9 @@ from itertools import product
 from .env import AssistiveEnv
 
 class LaptopEnv(AssistiveEnv):
-	def __init__(self, time_limit=200, robot_type='jaco', human_control=False):
-		super(LaptopEnv, self).__init__(robot_type=robot_type, task='laptop', human_control=human_control, frame_skip=5, time_step=0.02, action_robot_len=7, action_human_len=(10 if human_control else 0), obs_robot_len=21, obs_human_len=(34 if human_control else 0))
-		self.observation_space = spaces.Box(low=np.array([-10.0]*20+[0]), high=np.array([10.0]*20+[np.inf]), dtype=np.float32)
+	def __init__(self, robot_type='jaco'):
+		super(LaptopEnv, self).__init__(robot_type=robot_type, task='laptop', frame_skip=5, time_step=0.02, action_robot_len=7, obs_robot_len=21)
+		self.observation_space = spaces.Box(-np.inf,np.inf,(21,), dtype=np.float32)
 		self.og_init_pos = np.array([-0.5, 0, 0.8])
 
 	def step(self, action):
@@ -32,13 +32,21 @@ class LaptopEnv(AssistiveEnv):
 			and tool_force_at_target < 10:
 			self.task_success += 1
 
-		reward = self.config('distance_weight')*reward_distance + self.config('action_weight')*reward_action\
-		 + 10*(tool_force_at_target>.5) - 10*contact_laptop_count + 10*reward_laptop_distance
+		reward = np.dot([1,.01,1,1],
+			[reward_distance, reward_action,(tool_force_at_target>.5),-contact_laptop_count])\
+			 + 10*reward_laptop_distance
 
 		if self.gui and tool_force_at_target > 0:
 			print('Task success:', self.task_success, 'tool force at target:', tool_force_at_target)
 
-		info = {'task_success': int(self.task_success >= self.config('task_success_threshold')), 'action_robot_len': self.action_robot_len, 'action_human_len': self.action_human_len, 'obs_robot_len': self.obs_robot_len, 'obs_human_len': self.obs_human_len}
+		self.contact_laptop_count += contact_laptop_count
+		self.laptop_move = np.linalg.norm(self.laptop_pos - new_laptop_pos)
+		info = {'task_success': self.task_success,
+		'distance_target': np.linalg.norm(self.target_pos - self.tool_pos),
+		'laptop_count': contact_laptop_count,
+		'laptop_move': self.laptop_move,
+		'action_size': -reward_action,
+		}
 		done = False
 
 		return obs, reward, done, info
@@ -87,6 +95,8 @@ class LaptopEnv(AssistiveEnv):
 	def reset(self):
 		self.setup_timing()
 		self.task_success = 0
+		self.contact_laptop_count = 0
+		self.laptop_move = 0
 		_human, self.wheelchair, self.robot, self.robot_lower_limits, self.robot_upper_limits, _human_lower_limits, _human_upper_limits, self.robot_right_arm_joint_indices, self.robot_left_arm_joint_indices, self.gender\
 			 = self.world_creation.create_new_world(furniture_type='wheelchair', init_human=False, static_human_base=True, human_impairment='random', print_joints=False, gender='random')
 		self.robot_lower_limits = self.robot_lower_limits[self.robot_left_arm_joint_indices]
@@ -101,7 +111,7 @@ class LaptopEnv(AssistiveEnv):
 		table_pos = np.array([.0,-1.1,0])
 		self.table = p.loadURDF(os.path.join(self.world_creation.directory, 'table', 'table_tall.urdf'), basePosition=table_pos, baseOrientation=p.getQuaternionFromEuler([0, 0, 0], physicsClientId=self.id), physicsClientId=self.id)
 		laptop_scale = 0.12
-		laptop_pos = table_pos+np.array([0,.2,.7])+np.array([.3,.1,0])*self.np_random.uniform(-1,1,3)
+		laptop_pos = self.laptop_pos = table_pos+np.array([0,.2,.7])+np.array([.3,.1,0])*self.np_random.uniform(-1,1,3)
 		self.laptop = p.loadURDF(os.path.join(self.world_creation.directory, 'laptop', 'laptop.urdf'), basePosition=laptop_pos, baseOrientation=p.getQuaternionFromEuler([0, 0, -np.pi/2], physicsClientId=self.id),\
 			 physicsClientId=self.id, globalScaling=laptop_scale)
 
@@ -164,5 +174,5 @@ class LaptopEnv(AssistiveEnv):
 		return np.array(p.getBasePositionAndOrientation(self.tool, physicsClientId=self.id)[0])
 
 class LaptopJacoEnv(LaptopEnv):
-	def __init__(self):
-		super().__init__(robot_type='jaco', human_control=False)
+	def __init__(self,**kwargs):
+		super().__init__(robot_type='jaco',**kwargs)

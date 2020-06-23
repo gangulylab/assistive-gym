@@ -24,7 +24,7 @@ class ScratchItchEnv(AssistiveEnv):
 
 		tool_pos = np.array(p.getLinkState(self.tool, 1, computeForwardKinematics=True, physicsClientId=self.id)[0])
 		reward_distance = -np.linalg.norm(self.target_pos - tool_pos) # Penalize distances away from target
-		reward_action = -np.sum(np.square(action)) # Penalize actions
+		reward_action = -np.linalg.norm(action) # Penalize actions
 		reward_force_scratch = 0.0 # Reward force near the target
 		if target_contact_pos is not None and np.linalg.norm(target_contact_pos - self.prev_target_contact_pos) > 0.01 and tool_force_at_target < 10:
 			# Encourage the robot to move around near the target to simulate scratching
@@ -37,7 +37,16 @@ class ScratchItchEnv(AssistiveEnv):
 		if self.gui and tool_force_at_target > 0:
 			print('Task success:', self.task_success, 'Tool force at target:', tool_force_at_target, reward_force_scratch)
 
-		info = {'total_force_on_human': total_force_on_human, 'task_success': int(self.task_success >= self.config('task_success_threshold')), 'action_robot_len': self.action_robot_len, 'action_human_len': self.action_human_len, 'obs_robot_len': self.obs_robot_len, 'obs_human_len': self.obs_human_len}
+		info = {'total_force_on_human': total_force_on_human, 
+		'task_success': int(self.task_success >= self.config('task_success_threshold')), 
+		'action_robot_len': self.action_robot_len, 
+		'action_human_len': self.action_human_len, 
+		'obs_robot_len': self.obs_robot_len, 
+		'obs_human_len': self.obs_human_len}
+		info.update({
+		'distance_target': -reward_distance,
+		'action_size': -reward_action,
+		})
 		done = False
 
 		return obs, reward, done, info

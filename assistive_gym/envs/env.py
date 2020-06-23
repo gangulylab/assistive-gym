@@ -55,7 +55,8 @@ class AssistiveEnv(gym.Env):
         self.width = 3840
         self.height = 2160
 
-        self.human_limits_model = load_model(os.path.join(self.world_creation.directory, 'realistic_arm_limits_model.h5'))
+        if human_control:
+            self.human_limits_model = load_model(os.path.join(self.world_creation.directory, 'realistic_arm_limits_model.h5'))
         self.right_arm_previous_valid_pose = None
         self.left_arm_previous_valid_pose = None
         self.human_joint_lower_limits = None

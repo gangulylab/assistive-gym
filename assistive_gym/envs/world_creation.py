@@ -317,7 +317,7 @@ class WorldCreation:
         else:
             gripper_pos, gripper_orient = p.getLinkState(robot, 54 if self.robot_type=='pr2' else 18 if self.robot_type=='sawyer' else 25 if self.robot_type=='baxter' else 8, computeForwardKinematics=True, physicsClientId=self.id)[:2]
         transform_pos, transform_orient = p.multiplyTransforms(positionA=gripper_pos, orientationA=gripper_orient, positionB=pos_offset, orientationB=orient_offset, physicsClientId=self.id)
-        if self.task in ['scratch_itch','laptop']:
+        if self.task in ['scratch_itch','laptop','switch']:
             tool = p.loadURDF(os.path.join(self.directory, 'scratcher', 'tool_scratch.urdf'), basePosition=transform_pos, baseOrientation=transform_orient, physicsClientId=self.id)
         elif self.task == 'bed_bathing':
             tool = p.loadURDF(os.path.join(self.directory, 'bed_bathing', 'wiper.urdf'), basePosition=transform_pos, baseOrientation=transform_orient, physicsClientId=self.id)

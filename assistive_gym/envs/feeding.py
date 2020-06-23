@@ -25,16 +25,19 @@ class FeedingEnv(AssistiveEnv):
 		spoon_pos = np.array(spoon_pos)
 
 		reward_distance_mouth_target = -np.linalg.norm(self.target_pos - spoon_pos) # Penalize robot for distance between the spoon and human mouth.
-		reward_action = -np.sum(np.square(action)) # Penalize actions
+		reward_action = -np.linalg.norm(action) # Penalize actions
 
 		reward = self.config('distance_weight')*reward_distance_mouth_target + self.config('action_weight')*reward_action + self.config('food_reward_weight')*reward_food + preferences_score
 
 		if self.gui and reward_food != 0:
 			print('Task success:', self.task_success, 'Food reward:', reward_food)
 
-		info = {'total_force_on_human': total_force_on_human, 'task_success': int(self.task_success >= self.total_food_count*self.config('task_success_threshold')),\
+		info = {'total_force_on_human': total_force_on_human, 'task_success': self.task_success,\
 			'action_robot_len': self.action_robot_len, 'action_human_len': self.action_human_len, 'obs_robot_len': self.obs_robot_len, 'obs_human_len': self.obs_human_len}
-		info.update({'spoon_pos': spoon_pos, 'torso_pos': np.array(p.getLinkState(self.robot, 0, computeForwardKinematics=True, physicsClientId=self.id)[0]), 'id': self.id})
+		info.update({
+		'distance_target': -reward_distance_mouth_target,
+		'action_size': -reward_action,
+		})
 		done = False
 
 		return obs, reward, done, info
@@ -151,8 +154,8 @@ class FeedingEnv(AssistiveEnv):
 		self.og_init_pos = np.array(bowl_pos) + np.array([0, -0.1, 0.4])
 		init_pos = self.init_pos = self.init_start_pos()
 		if self.robot_type == 'pr2':
-			target_orient = p.getQuaternionFromEuler([np.pi/2.0, 0, 0], physicsClientId=self.id)
-			self.position_robot_toc(self.robot, 54, [(target_pos, target_orient), (self.target_pos, None)], [(self.target_pos, target_orient)], self.robot_right_arm_joint_indices, self.robot_lower_limits, self.robot_upper_limits, ik_indices=range(15, 15+7), pos_offset=np.array([0.1, 0.2, 0]), max_ik_iterations=200, step_sim=True, check_env_collisions=False, human_joint_indices=self.human_controllable_joint_indices, human_joint_positions=self.target_human_joint_positions)
+			init_orient = p.getQuaternionFromEuler([np.pi/2.0, 0, 0], physicsClientId=self.id)
+			self.position_robot_toc(self.robot, 54, [(init_pos, init_orient), (self.target_pos, None)], [(self.target_pos, init_orient)], self.robot_right_arm_joint_indices, self.robot_lower_limits, self.robot_upper_limits, ik_indices=range(15, 15+7), pos_offset=np.array([0.1, 0.2, 0]), max_ik_iterations=200, step_sim=True, check_env_collisions=False, human_joint_indices=self.human_controllable_joint_indices, human_joint_positions=self.target_human_joint_positions)
 			self.world_creation.set_gripper_open_position(self.robot, position=0.03, left=False, set_instantly=True)
 			self.spoon = self.world_creation.init_tool(self.robot, mesh_scale=[0.08]*3, pos_offset=[0, -0.03, -0.11], orient_offset=p.getQuaternionFromEuler([-0.2, 0, 0], physicsClientId=self.id), left=False, maximal=False)
 		elif self.robot_type == 'jaco':
@@ -161,11 +164,11 @@ class FeedingEnv(AssistiveEnv):
 			self.world_creation.set_gripper_open_position(self.robot, position=1.33, left=False, set_instantly=True)
 			self.spoon = self.world_creation.init_tool(self.robot, mesh_scale=[0.08]*3, pos_offset=[0.1, -0.0225, 0.03], orient_offset=p.getQuaternionFromEuler([-0.1, -np.pi/2.0, 0], physicsClientId=self.id), left=False, maximal=False)
 		else:
-			target_orient = p.getQuaternionFromEuler(np.array([np.pi/2.0, 0, np.pi/2.0]), physicsClientId=self.id)
+			init_orient = p.getQuaternionFromEuler(np.array([np.pi/2.0, 0, np.pi/2.0]), physicsClientId=self.id)
 			if self.robot_type == 'baxter':
-				self.position_robot_toc(self.robot, 26, [(target_pos, target_orient)], [(self.target_pos, target_orient)], self.robot_right_arm_joint_indices, self.robot_lower_limits, self.robot_upper_limits, ik_indices=range(1, 8), pos_offset=np.array([0, 0.2, 0.975]), max_ik_iterations=200, step_sim=True, check_env_collisions=False, human_joint_indices=self.human_controllable_joint_indices, human_joint_positions=self.target_human_joint_positions)
+				self.position_robot_toc(self.robot, 26, [(init_pos, init_orient)], [(self.target_pos, init_orient)], self.robot_right_arm_joint_indices, self.robot_lower_limits, self.robot_upper_limits, ik_indices=range(1, 8), pos_offset=np.array([0, 0.2, 0.975]), max_ik_iterations=200, step_sim=True, check_env_collisions=False, human_joint_indices=self.human_controllable_joint_indices, human_joint_positions=self.target_human_joint_positions)
 			else:
-				self.position_robot_toc(self.robot, 19, [(target_pos, target_orient), (self.target_pos, None)], [(self.target_pos, target_orient)], self.robot_right_arm_joint_indices, self.robot_lower_limits, self.robot_upper_limits, ik_indices=[0, 2, 3, 4, 5, 6, 7], pos_offset=np.array([-0.1, 0.2, 0.975]), max_ik_iterations=200, step_sim=True, check_env_collisions=False, human_joint_indices=self.human_controllable_joint_indices, human_joint_positions=self.target_human_joint_positions)
+				self.position_robot_toc(self.robot, 19, [(init_pos, init_orient), (self.target_pos, None)], [(self.target_pos, init_orient)], self.robot_right_arm_joint_indices, self.robot_lower_limits, self.robot_upper_limits, ik_indices=[0, 2, 3, 4, 5, 6, 7], pos_offset=np.array([-0.1, 0.2, 0.975]), max_ik_iterations=200, step_sim=True, check_env_collisions=False, human_joint_indices=self.human_controllable_joint_indices, human_joint_positions=self.target_human_joint_positions)
 			self.world_creation.set_gripper_open_position(self.robot, position=0.0, left=False, set_instantly=True)
 			self.spoon = self.world_creation.init_tool(self.robot, mesh_scale=[0.08]*3, pos_offset=[-0.1, 0.12, -0.02], orient_offset=p.getQuaternionFromEuler([np.pi/2.0-0.1, 0, np.pi/2.0], physicsClientId=self.id), left=False, maximal=False)
 
