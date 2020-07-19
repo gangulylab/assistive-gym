@@ -3,6 +3,8 @@ from gym import spaces
 import numpy as np
 import pybullet as p
 
+from numpy.linalg import norm
+
 from .env import AssistiveEnv
 
 class ScratchItchEnv(AssistiveEnv):
@@ -11,6 +13,8 @@ class ScratchItchEnv(AssistiveEnv):
 		self.og_init_pos = np.array([-0.5, 0, 0.8])
 
 	def step(self, action):
+		reward_distance = np.linalg.norm(self.target_pos - self.tool_pos)
+		old_tool_pos = self.tool_pos
 		self.take_step(action, robot_arm='left', gains=self.config('robot_gains'), forces=self.config('robot_forces'), human_gains=0.05)
 
 		total_force_on_human, tool_force, tool_force_at_target, target_contact_pos = self.get_total_force()
@@ -21,9 +25,13 @@ class ScratchItchEnv(AssistiveEnv):
 
 		# Get human preferences
 		preferences_score = self.human_preferences(end_effector_velocity=end_effector_velocity, total_force_on_human=total_force_on_human, tool_force_at_target=tool_force_at_target)
+		
+		old_traj = self.target_pos - old_tool_pos
+		new_traj = self.tool_pos - old_tool_pos
+		cos_off_course = np.dot(old_traj,new_traj)/(norm(old_traj)*norm(new_traj))
 
 		tool_pos = np.array(p.getLinkState(self.tool, 1, computeForwardKinematics=True, physicsClientId=self.id)[0])
-		reward_distance = -np.linalg.norm(self.target_pos - tool_pos) # Penalize distances away from target
+		reward_distance -= np.linalg.norm(self.target_pos - tool_pos)
 		reward_action = -np.linalg.norm(action) # Penalize actions
 		reward_force_scratch = 0.0 # Reward force near the target
 		if target_contact_pos is not None and np.linalg.norm(target_contact_pos - self.prev_target_contact_pos) > 0.01 and tool_force_at_target < 10:
@@ -44,8 +52,11 @@ class ScratchItchEnv(AssistiveEnv):
 		'obs_robot_len': self.obs_robot_len, 
 		'obs_human_len': self.obs_human_len}
 		info.update({
-		'distance_target': -reward_distance,
+		'distance_target': np.linalg.norm(self.target_pos - tool_pos),
+		'diff_distance': reward_distance,
 		'action_size': -reward_action,
+		'cos_off_course': cos_off_course,
+		'trajectory': new_traj,
 		})
 		done = False
 
@@ -89,9 +100,9 @@ class ScratchItchEnv(AssistiveEnv):
 		elbow_pos, elbow_orient = p.getLinkState(self.human, 7, computeForwardKinematics=True, physicsClientId=self.id)[:2]
 		wrist_pos, wrist_orient = p.getLinkState(self.human, 9, computeForwardKinematics=True, physicsClientId=self.id)[:2]
 
-		robot_obs = np.concatenate([tool_pos-torso_pos, tool_orient, tool_pos - self.target_pos, self.target_pos-torso_pos, robot_joint_positions, shoulder_pos-torso_pos, elbow_pos-torso_pos, wrist_pos-torso_pos, forces]).ravel()
+		robot_obs = np.concatenate([tool_pos-torso_pos, tool_orient, robot_joint_positions, shoulder_pos-torso_pos, elbow_pos-torso_pos, wrist_pos-torso_pos, forces]).ravel()
 		if self.human_control:
-			human_obs = np.concatenate([tool_pos-human_pos, tool_orient, tool_pos - self.target_pos, self.target_pos-human_pos, human_joint_positions, shoulder_pos-human_pos, elbow_pos-human_pos, wrist_pos-human_pos, forces_human]).ravel()
+			human_obs = np.concatenate([tool_pos-human_pos, tool_orient, human_joint_positions, shoulder_pos-human_pos, elbow_pos-human_pos, wrist_pos-human_pos, forces_human]).ravel()
 		else:
 			human_obs = []
 
@@ -150,6 +161,7 @@ class ScratchItchEnv(AssistiveEnv):
 		p.setGravity(0, 0, -1, body=self.human, physicsClientId=self.id)
 
 		# Enable rendering
+		p.resetDebugVisualizerCamera(cameraDistance= .1, cameraYaw=180, cameraPitch=0, cameraTargetPosition=[0, .1, 1], physicsClientId=self.id)
 		p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1, physicsClientId=self.id)
 
 		return self._get_obs([0], [0, 0])
@@ -212,6 +224,5 @@ class ScratchItchEnv(AssistiveEnv):
 	@property
 	def tool_pos(self):
 		return np.array(p.getLinkState(self.tool, 1, computeForwardKinematics=True, physicsClientId=self.id)[0])
-	def get_tool_pos(self):
-		return self.tool_pos
+
 		

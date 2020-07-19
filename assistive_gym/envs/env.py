@@ -6,6 +6,7 @@ import numpy as np
 import pybullet as p
 # import cv2
 from keras.models import load_model
+from screeninfo import get_monitors
 
 from .util import Util
 from .world_creation import WorldCreation
@@ -50,10 +51,14 @@ class AssistiveEnv(gym.Env):
 
         self.record_video = False
         self.video_writer = None
-        # self.width = 1920
-        # self.height = 1080
-        self.width = 3840
-        self.height = 2160
+        try:
+            self.width = get_monitors()[0].width
+            self.height = get_monitors()[0].height
+        except Exception as e:
+            self.width = 1920
+            self.height = 1080
+            # self.width = 3840
+            # self.height = 2160
 
         if human_control:
             self.human_limits_model = load_model(os.path.join(self.world_creation.directory, 'realistic_arm_limits_model.h5'))
@@ -400,8 +405,8 @@ class AssistiveEnv(gym.Env):
     def update_targets(self):
         pass
 
-    def render(self, mode='human'):
-        if not self.gui:
+    def render(self, mode='rgb_array'):
+        if not self.gui and mode == 'human':
             self.gui = True
             p.disconnect(self.id)
             self.id = p.connect(p.GUI, options='--background_color_red=0.8 --background_color_green=0.9 --background_color_blue=1.0 --width=%d --height=%d' % (self.width, self.height))
@@ -409,4 +414,7 @@ class AssistiveEnv(gym.Env):
             self.world_creation = WorldCreation(self.id, robot_type=self.robot_type, task=self.task, time_step=self.time_step, np_random=self.np_random, config=self.config)
             self.util = Util(self.id, self.np_random)
             # print('Physics server ID:', self.id)
+        else:
+            return np.reshape(p.getCameraImage(width=self.width, height=self.height, physicsClientId=self.id)[2], (self.height, self.width, 4))[:, :, :3]
+        
 
