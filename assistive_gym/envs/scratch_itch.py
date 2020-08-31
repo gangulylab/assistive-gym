@@ -28,7 +28,7 @@ class ScratchItchEnv(AssistiveEnv):
 		
 		old_traj = self.target_pos - old_tool_pos
 		new_traj = self.tool_pos - old_tool_pos
-		cos_off_course = np.dot(old_traj,new_traj)/(norm(old_traj)*norm(new_traj))
+		cos_error = np.dot(old_traj,new_traj)/(norm(old_traj)*norm(new_traj))
 
 		tool_pos = np.array(p.getLinkState(self.tool, 1, computeForwardKinematics=True, physicsClientId=self.id)[0])
 		reward_distance -= np.linalg.norm(self.target_pos - tool_pos)
@@ -52,10 +52,10 @@ class ScratchItchEnv(AssistiveEnv):
 		'obs_robot_len': self.obs_robot_len, 
 		'obs_human_len': self.obs_human_len}
 		info.update({
-		'distance_target': np.linalg.norm(self.target_pos - tool_pos),
+		'distance_to_target': np.linalg.norm(self.target_pos - tool_pos),
 		'diff_distance': reward_distance,
 		'action_size': -reward_action,
-		'cos_off_course': cos_off_course,
+		'cos_error': cos_error,
 		'trajectory': new_traj,
 		})
 		done = False

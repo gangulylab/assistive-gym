@@ -22,7 +22,7 @@ class ReachEnv(AssistiveEnv):
 
 		new_dist = np.linalg.norm(self.target_pos - self.tool_pos)
 		new_traj = self.tool_pos - old_tool_pos
-		cos_off_course = np.dot(old_traj,new_traj)/(norm(old_traj)*norm(new_traj))
+		cos_error = np.dot(old_traj,new_traj)/(norm(old_traj)*norm(new_traj))
 
 		task_success = new_dist < .01
 		self.task_success += task_success
@@ -35,12 +35,12 @@ class ReachEnv(AssistiveEnv):
 
 		info = {
 			'task_success': self.task_success,
-			'distance_target': new_dist,
+			'distance_to_target': new_dist,
 			'diff_distance': reward_distance,
-			'action_size': -reward_action,
-			'cos_off_course': cos_off_course,
-			'trajectory': new_traj,
-			'old_tool_pos': old_tool_pos,
+			# 'action_size': -reward_action,
+			'cos_error': cos_error,
+			# 'trajectory': new_traj,
+			# 'old_tool_pos': old_tool_pos,
 		}
 		done = False
 
@@ -55,7 +55,7 @@ class ReachEnv(AssistiveEnv):
 		robot_joint_positions = np.array([x[0] for x in robot_joint_states])
 		robot_pos, robot_orient = p.getBasePositionAndOrientation(self.robot, physicsClientId=self.id)
 
-		robot_obs = np.concatenate([tool_pos-torso_pos, tool_orient, robot_joint_positions]).ravel()
+		robot_obs = np.concatenate([tool_pos, tool_orient, robot_joint_positions]).ravel()
 		return robot_obs.ravel()
 
 	def reset(self):
@@ -100,11 +100,15 @@ class ReachEnv(AssistiveEnv):
 		self.world_creation.set_gripper_open_position(self.robot, position=1, left=True, set_instantly=True)
 		self.tool = self.world_creation.init_tool(self.robot, mesh_scale=[0.001]*3, pos_offset=[0, 0, 0.02], orient_offset=p.getQuaternionFromEuler([0, -np.pi/2.0, 0], physicsClientId=self.id), maximal=False)
 
+	def set_target(self):
+		self.target_pos = np.array(self.targets[self.target_index])
+		return self.target_pos
+
 	def generate_target(self,index): 
 		self.target_index = index
 		self.targets = reach_arena[0] + .1*self.np_random.uniform(-1,1,3) + list(product(*list(map(lambda extent:np.linspace(-extent,extent,3), reach_arena[1]))))
 		self.targets = self.targets[[21,0,1,24,23,3,10,13,7,19,2,11,17,20,16,6,18,22,26,9,4,25,8,15,5,12,14]][:self.num_targets]
-		target_pos = self.target_pos = np.array(self.targets[self.target_index])
+		target_pos = self.set_target()
 
 		sphere_collision = -1
 		sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=0.01, rgbaColor=[0, 1, 1, 1], physicsClientId=self.id)

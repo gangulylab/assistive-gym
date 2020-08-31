@@ -21,7 +21,7 @@ class LaptopEnv(AssistiveEnv):
 
 		new_dist = np.linalg.norm(self.target_pos - self.tool_pos)
 		new_traj = self.tool_pos - old_tool_pos
-		cos_off_course = np.dot(old_traj,new_traj)/(norm(old_traj)*norm(new_traj))
+		cos_error = np.dot(old_traj,new_traj)/(norm(old_traj)*norm(new_traj))
 		new_laptop_pos = np.array(p.getBasePositionAndOrientation(self.laptop, physicsClientId=self.id)[0])
 		self.laptop_move = np.linalg.norm(self.laptop_pos - new_laptop_pos)
 
@@ -41,14 +41,14 @@ class LaptopEnv(AssistiveEnv):
 
 		info = {
 			'task_success': self.task_success,
-			'distance_target': new_dist,
+			'distance_to_target': new_dist,
 			'diff_distance': reward_distance,
-			'laptop_count': contact_laptop_count,
-			'laptop_move': self.laptop_move,
-			'action_size': -reward_action,
-			'cos_off_course': cos_off_course,
-			'trajectory': new_traj,
-			'old_tool_pos': old_tool_pos,
+			# 'laptop_count': contact_laptop_count,
+			# 'laptop_move': self.laptop_move,
+			# 'action_size': -reward_action,
+			'cos_error': cos_error,
+			# 'trajectory': new_traj,
+			# 'old_tool_pos': old_tool_pos,
 		}
 		done = False
 
@@ -93,7 +93,7 @@ class LaptopEnv(AssistiveEnv):
 		screen_pos = np.array(p.getLinkState(self.laptop, 0, computeForwardKinematics=True,physicsClientId=self.id)[0])
 
 		# robot_obs = np.concatenate([tool_pos-torso_pos, tool_orient, robot_joint_positions, forces]).ravel()
-		robot_obs = np.concatenate([tool_pos-torso_pos, tool_orient, robot_joint_positions, screen_pos-torso_pos, forces]).ravel()
+		robot_obs = np.concatenate([tool_pos, tool_orient, robot_joint_positions, screen_pos, forces]).ravel()
 		return robot_obs.ravel()
 
 	def reset(self):
@@ -147,6 +147,10 @@ class LaptopEnv(AssistiveEnv):
 		self.world_creation.set_gripper_open_position(self.robot, position=1, left=True, set_instantly=True)
 		self.tool = self.world_creation.init_tool(self.robot, mesh_scale=[0.001]*3, pos_offset=[0, 0, 0.02], orient_offset=p.getQuaternionFromEuler([0, -np.pi/2.0, 0], physicsClientId=self.id), maximal=False)
 
+	def set_target(self):
+		self.target_pos = np.array(self.targets[self.target_index])
+		return self.target_pos
+
 	def generate_target(self,index): 
 		self.target_index = index
 		lbody_pos, lbody_orient = p.getBasePositionAndOrientation(self.laptop, physicsClientId=self.id)
@@ -163,8 +167,8 @@ class LaptopEnv(AssistiveEnv):
 	def update_targets(self):
 		lbody_pos, lbody_orient = p.getBasePositionAndOrientation(self.laptop, physicsClientId=self.id)
 		self.targets = [p.multiplyTransforms(lbody_pos, lbody_orient, target_pos, [0, 0, 0, 1])[0] for target_pos in self.buttons]
-		self.target_pos = np.array(self.targets[self.target_index])
-		p.resetBasePositionAndOrientation(self.target, self.target_pos, [0, 0, 0, 1], physicsClientId=self.id)
+		target_pos = self.set_target()
+		p.resetBasePositionAndOrientation(self.target, target_pos, [0, 0, 0, 1], physicsClientId=self.id)
 
 	@property
 	def tool_pos(self):

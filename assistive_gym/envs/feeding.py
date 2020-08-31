@@ -20,7 +20,7 @@ class FeedingEnv(AssistiveEnv):
 
 		new_dist = np.linalg.norm(self.target_pos - self.tool_pos)
 		new_traj = self.tool_pos - old_tool_pos
-		cos_off_course = np.dot(old_traj,new_traj)/(norm(old_traj)*norm(new_traj))
+		cos_error = np.dot(old_traj,new_traj)/(norm(old_traj)*norm(new_traj))
 
 		robot_force_on_human, spoon_force_on_human = self.get_total_force()
 		obs = self._get_obs([spoon_force_on_human], [robot_force_on_human, spoon_force_on_human])
@@ -35,11 +35,11 @@ class FeedingEnv(AssistiveEnv):
 
 		info = {
 			'task_success': self.task_success,
-			'distance_target': new_dist,
+			'distance_to_target': new_dist,
 			'diff_distance': reward_distance,
-			'action_size': -reward_action,
-			'cos_off_course': cos_off_course,
-			'trajectory': new_traj,
+			# 'action_size': -reward_action,
+			'cos_error': cos_error,
+			# 'trajectory': new_traj,
 			'old_tool_pos': old_tool_pos,
 		}
 		done = False
@@ -100,7 +100,8 @@ class FeedingEnv(AssistiveEnv):
 
 		head_pos, head_orient = p.getLinkState(self.human, 23, computeForwardKinematics=True, physicsClientId=self.id)[:2]
 
-		robot_obs = np.concatenate([spoon_pos-torso_pos, spoon_orient, robot_right_joint_positions, head_pos-torso_pos, head_orient, forces]).ravel()
+		# robot_obs = np.concatenate([spoon_pos-torso_pos, spoon_orient, robot_right_joint_positions, head_pos-torso_pos, head_orient, forces]).ravel()
+		robot_obs = np.concatenate([spoon_pos, spoon_orient, robot_right_joint_positions, head_pos, head_orient, forces]).ravel()
 		if self.human_control:
 			human_obs = np.concatenate([spoon_pos-human_pos, spoon_orient, human_joint_positions, head_pos-human_pos, head_orient, forces_human]).ravel()
 		else:

@@ -3,8 +3,8 @@ import sys, os.path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'assistive-gym'))
 
-with open("README.md", "r") as f:
-    long_description = f.read()
+# with open("README.md", "r") as f:
+#     long_description = f.read()
 
 directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'assistive-gym', 'envs', 'assets')
 data_files = [os.path.join(os.path.dirname(os.path.realpath(__file__)), 'assistive-gym', 'config.ini')]
@@ -19,8 +19,8 @@ setup(name='assistive-gym',
     python_requires='>=3',
     install_requires=['gym>=0.2.3', 'pybullet', 'numpy', 'keras', 'tensorflow'],
     description='Physics simulation for assistive robotics and human-robot interaction.',
-    long_description=long_description,
-    long_description_content_type="text/markdown",
+    # long_description=long_description,
+    # long_description_content_type="text/markdown",
     url='https://github.com/Healthcare-Robotics/assistive-gym',
     author='Zackory Erickson',
     author_email='zackory@gatech.edu',

@@ -9,8 +9,9 @@ from .env import AssistiveEnv
 class LightSwitchEnv(AssistiveEnv):
 	def __init__(self, robot_type='jaco'):
 		super(LightSwitchEnv, self).__init__(robot_type=robot_type, task='switch', frame_skip=5, time_step=0.02, action_robot_len=7, obs_robot_len=18)
-		self.observation_space = spaces.Box(-np.inf,np.inf,(18,), dtype=np.float32)
-		self.num_targets = 6
+		# self.observation_space = spaces.Box(-np.inf,np.inf,(18,), dtype=np.float32)
+		self.observation_space = spaces.Box(-np.inf,np.inf,(15,), dtype=np.float32)
+		self.num_targets = 4
 
 	def step(self, action):
 		old_dist = np.linalg.norm(self.target_pos - self.tool_pos)
@@ -21,17 +22,20 @@ class LightSwitchEnv(AssistiveEnv):
 
 		new_dist = np.linalg.norm(self.target_pos - self.tool_pos)
 		new_traj = self.tool_pos - old_tool_pos
-		cos_off_course = np.dot(old_traj,new_traj)/(norm(old_traj)*norm(new_traj))
+		cos_error = np.dot(old_traj,new_traj)/(norm(old_traj)*norm(new_traj))
 		
-		tool_force, tool_force_at_target, target_contact_pos, bad_contact_count = self.get_total_force()
-		self.bad_contact_count += bad_contact_count
-		if target_contact_pos is not None:
-			target_contact_pos = np.array(target_contact_pos)
-		task_success = target_contact_pos is not None\
-			and tool_force_at_target < 10\
-			and self.bad_contact_count < 5
+		# tool_force, tool_force_at_target, target_contact_pos, bad_contact_count = self.get_total_force()
+		# self.bad_contact_count += bad_contact_count
+		# if target_contact_pos is not None:
+		# 	target_contact_pos = np.array(target_contact_pos)
+		# task_success = target_contact_pos is not None\
+		# 	and tool_force_at_target < 10\
+		# 	and self.bad_contact_count < 5
+		# self.task_success += task_success
+		# obs = self._get_obs([tool_force])
+		task_success = np.any([norm(self.tool_pos-valid_pos) < .025 for valid_pos in self.valid_pos])
 		self.task_success += task_success
-		obs = self._get_obs([tool_force])
+		obs = self._get_obs([0])
 
 		reward_distance = old_dist - new_dist
 		reward_action = -np.linalg.norm(action) # Penalize actions
@@ -40,12 +44,12 @@ class LightSwitchEnv(AssistiveEnv):
 
 		info = {
 			'task_success': self.task_success,
-			'distance_target': new_dist,
+			'distance_to_target': new_dist,
 			'diff_distance': reward_distance,
-			'action_size': -reward_action,
-			'cos_off_course': cos_off_course,
-			'trajectory': new_traj,
-			'old_tool_pos': old_tool_pos,
+			# 'action_size': -reward_action,
+			'cos_error': cos_error,
+			# 'trajectory': new_traj,
+			# 'old_tool_pos': old_tool_pos,
 		}
 		done = False
 
@@ -84,8 +88,8 @@ class LightSwitchEnv(AssistiveEnv):
 
 		switch_pos = np.array(p.getBasePositionAndOrientation(self.switch, physicsClientId=self.id)[0])
 
-		# robot_obs = np.concatenate([tool_pos-torso_pos, tool_orient, robot_joint_positions, forces]).ravel()
-		robot_obs = np.concatenate([tool_pos-torso_pos, tool_orient, robot_joint_positions, switch_pos-torso_pos, forces]).ravel()
+		# robot_obs = np.concatenate([tool_pos-torso_pos, tool_orient, robot_joint_positions, switch_pos, forces]).ravel()
+		robot_obs = np.concatenate([tool_pos, tool_orient, robot_joint_positions, forces]).ravel()
 		return robot_obs.ravel()
 
 	def reset(self):
@@ -119,6 +123,7 @@ class LightSwitchEnv(AssistiveEnv):
 		# Enable rendering
 		p.resetDebugVisualizerCamera(cameraDistance= .6, cameraYaw=180, cameraPitch=-45, cameraTargetPosition=[0, .1, 1], physicsClientId=self.id)
 		p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1, physicsClientId=self.id)
+		self.viewMatrix = p.computeViewMatrixFromYawPitchRoll([0, .1, 1], .6, 180, -45, 0, 2)
 
 		return self._get_obs([0])
 	
@@ -136,20 +141,20 @@ class LightSwitchEnv(AssistiveEnv):
 	def generate_target(self,index): 
 		self.target_index = index
 		# Place a switch on a wall
-		wall_index = index % 3
-		on_off = index // 3
+		wall_index = index % 2
+		on_off = index // 2
 
 		walls = [
 			(np.array([0,-1.1,1]),[0,0,0,1]),
-			(np.array([.6,-.2,1]),p.getQuaternionFromEuler([0, 0, np.pi/2])),
-			(np.array([-1.1,-.2,1]),p.getQuaternionFromEuler([0, 0, -np.pi/2])),
+			(np.array([.7,-.2,1]),p.getQuaternionFromEuler([0, 0, np.pi/2])),
+			# (np.array([-1.1,-.7,1]),p.getQuaternionFromEuler([0, 0, -np.pi/2])),
 			]
 		wall_pos,wall_orient = walls[wall_index]
 		wall_collision = p.createCollisionShape(p.GEOM_BOX,halfExtents=[1,.1,1])
 		wall_visual = p.createVisualShape(p.GEOM_BOX,halfExtents=[1,.1,1])
 		self.wall = p.createMultiBody(basePosition=wall_pos,baseOrientation=wall_orient,baseCollisionShapeIndex=wall_collision,baseVisualShapeIndex=wall_visual,physicsClientId=self.id)
 
-		wall_pos, wall_orient = p.getBasePositionAndOrientation(self.wall)
+		wall_pos, wall_orient = p.getBasePositionAndOrientation(self.wall, physicsClientId=self.id)
 		switch = np.array([0,.1,0])+np.array([.05,0,.05])*self.np_random.uniform(-1,1,3)
 		switch_pos,switch_orient = p.multiplyTransforms(wall_pos, wall_orient, switch, p.getQuaternionFromEuler([-np.pi/2,0,0]), physicsClientId=self.id)
 		switch_scale = .0006
@@ -157,13 +162,24 @@ class LightSwitchEnv(AssistiveEnv):
 		self.switch = p.loadURDF(os.path.join(self.world_creation.directory, 'light_switch', switch_file), basePosition=switch_pos, useFixedBase=True, baseOrientation=switch_orient,\
 			 physicsClientId=self.id,globalScaling=switch_scale)
 
-		self.targets = [p.multiplyTransforms(switch_pos, switch_orient, target_pos, [0, 0, 0, 1])[0] for target_pos in [[0,-.032,.017],[0,.032,.017]]\
+		self.targets = [p.multiplyTransforms(switch_pos, switch_orient, target_pos, [0, 0, 0, 1])[0] for target_pos in [[0,-.027,.017],[0,.027,.017]]\
 						for switch_pos,switch_orient in [p.multiplyTransforms(wall_pos, wall_orient, switch, p.getQuaternionFromEuler([-np.pi/2,0,0]))\
 						for wall_pos,wall_orient in walls]]
-		target_pos = self.target_pos = np.array(self.targets[self.target_index])
+		self.target_pos = np.array(self.targets[self.target_index])
+
+		target_left = [p.multiplyTransforms(switch_pos, switch_orient, target_pos, [0, 0, 0, 1])[0] for target_pos in [[.03,-.027,.017],[.03,.027,.017]]\
+						for switch_pos,switch_orient in [p.multiplyTransforms(wall_pos, wall_orient, switch, p.getQuaternionFromEuler([-np.pi/2,0,0]))\
+						for wall_pos,wall_orient in walls]]
+		target_right = [p.multiplyTransforms(switch_pos, switch_orient, target_pos, [0, 0, 0, 1])[0] for target_pos in [[-.03,-.027,.017],[-.03,.027,.017]]\
+						for switch_pos,switch_orient in [p.multiplyTransforms(wall_pos, wall_orient, switch, p.getQuaternionFromEuler([-np.pi/2,0,0]))\
+						for wall_pos,wall_orient in walls]]
+		self.valid_pos = [self.target_pos,np.array(target_left[self.target_index]),np.array(target_right[self.target_index])]
+		
 		sphere_collision = -1
-		sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=0.01, rgbaColor=[0, 1, 1, 1], physicsClientId=self.id)
-		self.target = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=target_pos, useMaximalCoordinates=False, physicsClientId=self.id)
+		sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=0.025, rgbaColor=[0, 1, 1, 1], physicsClientId=self.id)
+		# self.target = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=target_pos, useMaximalCoordinates=False, physicsClientId=self.id)
+		self.valids = [p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=target_pos, useMaximalCoordinates=False, physicsClientId=self.id)\
+						for target_pos in self.valid_pos]
 
 		self.update_targets()
 
