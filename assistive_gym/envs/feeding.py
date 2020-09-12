@@ -7,9 +7,11 @@ from numpy.linalg import norm
 from .env import AssistiveEnv
 
 class FeedingEnv(AssistiveEnv):
-	def __init__(self, robot_type='pr2', human_control=False):
+	def __init__(self, robot_type='pr2', human_control=False, success_dist=.05):
 		super(FeedingEnv, self).__init__(robot_type=robot_type, task='feeding', human_control=human_control, frame_skip=10, time_step=0.02, action_robot_len=7, action_human_len=(4 if human_control else 0), obs_robot_len=25, obs_human_len=(23 if human_control else 0))
+		self.observation_space = spaces.Box(-np.inf,np.inf,(15,), dtype=np.float32)
 		self.num_targets = 1
+		self.success_dist = success_dist
 
 	def step(self, action):
 		old_dist = np.linalg.norm(self.target_pos - self.tool_pos)
@@ -24,7 +26,7 @@ class FeedingEnv(AssistiveEnv):
 
 		robot_force_on_human, spoon_force_on_human = self.get_total_force()
 		obs = self._get_obs([spoon_force_on_human], [robot_force_on_human, spoon_force_on_human])
-		task_success = new_dist < .05
+		task_success = new_dist < self.success_dist
 		self.task_success += task_success
 
 		# reward_food, food_mouth_velocities, food_hit_human_reward = self.get_food_rewards()
@@ -40,7 +42,7 @@ class FeedingEnv(AssistiveEnv):
 			# 'action_size': -reward_action,
 			'cos_error': cos_error,
 			# 'trajectory': new_traj,
-			'old_tool_pos': old_tool_pos,
+			# 'old_tool_pos': old_tool_pos,
 		}
 		done = False
 
@@ -101,7 +103,7 @@ class FeedingEnv(AssistiveEnv):
 		head_pos, head_orient = p.getLinkState(self.human, 23, computeForwardKinematics=True, physicsClientId=self.id)[:2]
 
 		# robot_obs = np.concatenate([spoon_pos-torso_pos, spoon_orient, robot_right_joint_positions, head_pos-torso_pos, head_orient, forces]).ravel()
-		robot_obs = np.concatenate([spoon_pos, spoon_orient, robot_right_joint_positions, head_pos, head_orient, forces]).ravel()
+		robot_obs = np.concatenate([spoon_pos, spoon_orient, robot_right_joint_positions, forces]).ravel()
 		if self.human_control:
 			human_obs = np.concatenate([spoon_pos-human_pos, spoon_orient, human_joint_positions, head_pos-human_pos, head_orient, forces_human]).ravel()
 		else:
@@ -111,7 +113,6 @@ class FeedingEnv(AssistiveEnv):
 
 	def reset(self):
 		self.task_success = 0
-		self.laptop_move = 0
 
 		"""set up standard environment"""
 		self.setup_timing()
@@ -148,6 +149,7 @@ class FeedingEnv(AssistiveEnv):
 		# self.bowl = p.createMultiBody(baseMass=0.1, baseCollisionShapeIndex=bowl_collision, baseVisualShapeIndex=bowl_visual, basePosition=bowl_pos, baseOrientation=p.getQuaternionFromEuler([np.pi/2.0, 0, 0], physicsClientId=self.id), baseInertialFramePosition=[0, 0.04*self.bowl_scale, 0], useMaximalCoordinates=False, physicsClientId=self.id)
 		
 		
+		"""set up target and initial robot position (objects set up with target)"""
 		self.generate_target(0)
 		self.init_robot_arm(np.array(bowl_pos) + np.array([0, -0.1, 0.4]))
 

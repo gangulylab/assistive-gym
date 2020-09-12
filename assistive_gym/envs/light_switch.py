@@ -7,11 +7,12 @@ from numpy.linalg import norm
 from .env import AssistiveEnv
 
 class LightSwitchEnv(AssistiveEnv):
-	def __init__(self, robot_type='jaco'):
+	def __init__(self, robot_type='jaco', success_dist=.05):
 		super(LightSwitchEnv, self).__init__(robot_type=robot_type, task='switch', frame_skip=5, time_step=0.02, action_robot_len=7, obs_robot_len=18)
 		# self.observation_space = spaces.Box(-np.inf,np.inf,(18,), dtype=np.float32)
 		self.observation_space = spaces.Box(-np.inf,np.inf,(15,), dtype=np.float32)
 		self.num_targets = 4
+		self.success_dist = success_dist
 
 	def step(self, action):
 		old_dist = np.linalg.norm(self.target_pos - self.tool_pos)
@@ -33,7 +34,8 @@ class LightSwitchEnv(AssistiveEnv):
 		# 	and self.bad_contact_count < 5
 		# self.task_success += task_success
 		# obs = self._get_obs([tool_force])
-		task_success = np.any([norm(self.tool_pos-valid_pos) < .025 for valid_pos in self.valid_pos])
+		task_success = np.any([norm(self.tool_pos-valid_pos) < self.success_dist for valid_pos in self.valid_pos])
+		# task_success = norm(self.tool_pos-self.target_pos) < self.success_dist
 		self.task_success += task_success
 		obs = self._get_obs([0])
 
@@ -112,7 +114,6 @@ class LightSwitchEnv(AssistiveEnv):
 
 		"""set up target and initial robot position (objects set up with target)"""
 		self.generate_target(self.np_random.choice(self.num_targets))
-		# self.init_robot_arm(np.array([-.25,-.5,1])+np.array([.75,.5,.1])*self.np_random.uniform(-1,1,3))
 		self.init_robot_arm(np.array([-0.2, -.5, 1]) + self.np_random.uniform(-0.05, 0.05, size=3))
 
 		"""configure pybullet"""
@@ -155,7 +156,8 @@ class LightSwitchEnv(AssistiveEnv):
 		self.wall = p.createMultiBody(basePosition=wall_pos,baseOrientation=wall_orient,baseCollisionShapeIndex=wall_collision,baseVisualShapeIndex=wall_visual,physicsClientId=self.id)
 
 		wall_pos, wall_orient = p.getBasePositionAndOrientation(self.wall, physicsClientId=self.id)
-		switch = np.array([0,.1,0])+np.array([.05,0,.05])*self.np_random.uniform(-1,1,3)
+		# switch = np.array([0,.1,0])+np.array([.05,0,.05])*self.np_random.uniform(-1,1,3)
+		switch = np.array([0,.1,0])
 		switch_pos,switch_orient = p.multiplyTransforms(wall_pos, wall_orient, switch, p.getQuaternionFromEuler([-np.pi/2,0,0]), physicsClientId=self.id)
 		switch_scale = .0006
 		switch_file = 'on_switch.urdf' if on_off else 'off_switch.urdf'
@@ -176,8 +178,8 @@ class LightSwitchEnv(AssistiveEnv):
 		self.valid_pos = [self.target_pos,np.array(target_left[self.target_index]),np.array(target_right[self.target_index])]
 		
 		sphere_collision = -1
-		sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=0.025, rgbaColor=[0, 1, 1, 1], physicsClientId=self.id)
-		# self.target = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=target_pos, useMaximalCoordinates=False, physicsClientId=self.id)
+		sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=self.success_dist, rgbaColor=[0, 1, 1, 1], physicsClientId=self.id)
+		# self.target = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=self.target_pos, useMaximalCoordinates=False, physicsClientId=self.id)
 		self.valids = [p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=target_pos, useMaximalCoordinates=False, physicsClientId=self.id)\
 						for target_pos in self.valid_pos]
 

@@ -7,10 +7,11 @@ from numpy.linalg import norm
 from .env import AssistiveEnv
 
 class LaptopEnv(AssistiveEnv):
-	def __init__(self, robot_type='jaco'):
+	def __init__(self, robot_type='jaco', success_dist=.05):
 		super(LaptopEnv, self).__init__(robot_type=robot_type, task='laptop', frame_skip=5, time_step=0.02, action_robot_len=7, obs_robot_len=18)
 		self.observation_space = spaces.Box(-np.inf,np.inf,(18,), dtype=np.float32)
-		self.num_targets = 30
+		self.num_targets = 12
+		self.success_dist = success_dist
 
 	def step(self, action):
 		old_dist = np.linalg.norm(self.target_pos - self.tool_pos)
@@ -28,11 +29,12 @@ class LaptopEnv(AssistiveEnv):
 		tool_force, tool_force_at_target, target_contact_pos, contact_laptop_count = self.get_total_force()
 		if target_contact_pos is not None:
 			target_contact_pos = np.array(target_contact_pos)
-		task_success = target_contact_pos is not None\
-			and tool_force_at_target < 10\
-			and self.laptop_move < .1
+		# task_success = target_contact_pos is not None\
+			# and self.laptop_move < .1
+			# and tool_force_at_target < 10\
+		task_success = norm(self.tool_pos-self.target_pos) < self.success_dist
 		self.task_success += task_success
-		obs = self._get_obs([tool_force])
+		obs = self._get_obs([0])
 
 		reward_distance = old_dist - new_dist
 		reward_action = -np.linalg.norm(action) # Penalize actions
@@ -120,7 +122,7 @@ class LaptopEnv(AssistiveEnv):
 		laptop_scale = 0.12
 		laptop_pos = self.laptop_pos = table_pos+np.array([0,.2,.7])+np.array([.3,.1,0])*self.np_random.uniform(-1,1,3)
 		self.laptop = p.loadURDF(os.path.join(self.world_creation.directory, 'laptop', 'laptop.urdf'), basePosition=laptop_pos, baseOrientation=p.getQuaternionFromEuler([0, 0, -np.pi/2], physicsClientId=self.id),\
-			 physicsClientId=self.id, globalScaling=laptop_scale)
+			 physicsClientId=self.id, globalScaling=laptop_scale, useFixedBase=True)
 
 		"""set up target and initial robot position"""
 		self.generate_target(self.np_random.choice(self.num_targets))
@@ -129,6 +131,7 @@ class LaptopEnv(AssistiveEnv):
 		"""configure pybullet"""
 		p.setGravity(0, 0, -9.81, physicsClientId=self.id)
 		p.setGravity(0, 0, 0, body=self.robot, physicsClientId=self.id)
+		p.setGravity(0, 0, 0, body=self.laptop, physicsClientId=self.id)
 		p.setPhysicsEngineParameter(numSubSteps=5, numSolverIterations=10, physicsClientId=self.id)
 		# Enable rendering
 		p.resetDebugVisualizerCamera(cameraDistance= .6, cameraYaw=180, cameraPitch=-45, cameraTargetPosition=[0, .1, 1], physicsClientId=self.id)
@@ -154,21 +157,26 @@ class LaptopEnv(AssistiveEnv):
 	def generate_target(self,index): 
 		self.target_index = index
 		lbody_pos, lbody_orient = p.getBasePositionAndOrientation(self.laptop, physicsClientId=self.id)
-		buttons = self.buttons = np.array([0,0,.05]) + np.array(list(product(np.linspace(-.1,.1,6),np.linspace(-.15,.15,5),[0])))
+		buttons = self.buttons = np.array([0,0,.05]) + np.array(list(product(np.linspace(-.1,.1,3),np.linspace(-.15,.15,4),[0])))
 		# self.target_button = np.array([0, 0, .05]) + np.array([.1, .15, 0])*self.np_random.uniform(-1,1,3)
 		target_pos, target_orient = p.multiplyTransforms(lbody_pos, lbody_orient, buttons[self.target_index], [0, 0, 0, 1], physicsClientId=self.id)
+		
+		lbody_pos, lbody_orient = p.getBasePositionAndOrientation(self.laptop, physicsClientId=self.id)
+		self.targets = [p.multiplyTransforms(lbody_pos, lbody_orient, target_pos, [0, 0, 0, 1])[0] for target_pos in self.buttons]
+		target_pos = self.set_target()
 
 		sphere_collision = -1
-		sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=0.01, rgbaColor=[0, 1, 1, 1], physicsClientId=self.id)
+		sphere_visual1 = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=.025, rgbaColor=[0, 1, 1, 1], physicsClientId=self.id)
+		self.valids = [p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual1, basePosition=target_pos, useMaximalCoordinates=False, physicsClientId=self.id)\
+						for target_pos in self.targets]
+		sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=self.success_dist, rgbaColor=[1, 1, 1, 1], physicsClientId=self.id)
 		self.target = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=target_pos, useMaximalCoordinates=False, physicsClientId=self.id)
+		p.resetBasePositionAndOrientation(self.target, target_pos, [0, 0, 0, 1], physicsClientId=self.id)
 
 		self.update_targets()
 
 	def update_targets(self):
-		lbody_pos, lbody_orient = p.getBasePositionAndOrientation(self.laptop, physicsClientId=self.id)
-		self.targets = [p.multiplyTransforms(lbody_pos, lbody_orient, target_pos, [0, 0, 0, 1])[0] for target_pos in self.buttons]
-		target_pos = self.set_target()
-		p.resetBasePositionAndOrientation(self.target, target_pos, [0, 0, 0, 1], physicsClientId=self.id)
+		pass
 
 	@property
 	def tool_pos(self):

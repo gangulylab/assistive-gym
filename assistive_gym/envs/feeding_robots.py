@@ -13,8 +13,8 @@ class FeedingSawyerEnv(FeedingEnv):
         super(FeedingSawyerEnv, self).__init__(robot_type='sawyer', human_control=False)
 
 class FeedingJacoEnv(FeedingEnv):
-    def __init__(self):
-        super(FeedingJacoEnv, self).__init__(robot_type='jaco', human_control=False)
+    def __init__(self,**kwargs):
+        super(FeedingJacoEnv, self).__init__(robot_type='jaco', human_control=False,**kwargs)
 
 class FeedingPR2HumanEnv(FeedingEnv):
     def __init__(self):
