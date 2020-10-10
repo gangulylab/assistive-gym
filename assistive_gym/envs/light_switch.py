@@ -7,8 +7,8 @@ from numpy.linalg import norm
 from .env import AssistiveEnv
 
 class LightSwitchEnv(AssistiveEnv):
-	def __init__(self, robot_type='jaco', success_dist=.05):
-		super(LightSwitchEnv, self).__init__(robot_type=robot_type, task='switch', frame_skip=5, time_step=0.02, action_robot_len=7, obs_robot_len=18)
+	def __init__(self, robot_type='jaco', success_dist=.05,frame_skip=5):
+		super(LightSwitchEnv, self).__init__(robot_type=robot_type, task='switch', frame_skip=frame_skip, time_step=0.02, action_robot_len=7, obs_robot_len=18)
 		# self.observation_space = spaces.Box(-np.inf,np.inf,(18,), dtype=np.float32)
 		self.observation_space = spaces.Box(-np.inf,np.inf,(15,), dtype=np.float32)
 		self.num_targets = 4
@@ -88,9 +88,9 @@ class LightSwitchEnv(AssistiveEnv):
 		robot_joint_positions = np.array([x[0] for x in robot_joint_states])
 		robot_pos, robot_orient = p.getBasePositionAndOrientation(self.robot, physicsClientId=self.id)
 
-		switch_pos = np.array(p.getBasePositionAndOrientation(self.switch, physicsClientId=self.id)[0])
-
+		# switch_pos = np.array(p.getBasePositionAndOrientation(self.switch, physicsClientId=self.id)[0])
 		# robot_obs = np.concatenate([tool_pos-torso_pos, tool_orient, robot_joint_positions, switch_pos, forces]).ravel()
+
 		robot_obs = np.concatenate([tool_pos, tool_orient, robot_joint_positions, forces]).ravel()
 		return robot_obs.ravel()
 
@@ -119,7 +119,7 @@ class LightSwitchEnv(AssistiveEnv):
 		"""configure pybullet"""
 		p.setGravity(0, 0, -9.81, physicsClientId=self.id)
 		p.setGravity(0, 0, 0, body=self.robot, physicsClientId=self.id)
-		p.setGravity(0, 0, 0, body=self.switch, physicsClientId=self.id)
+		# p.setGravity(0, 0, 0, body=self.switch, physicsClientId=self.id)
 		p.setPhysicsEngineParameter(numSubSteps=5, numSolverIterations=10, physicsClientId=self.id)
 		# Enable rendering
 		p.resetDebugVisualizerCamera(cameraDistance= .6, cameraYaw=180, cameraPitch=-45, cameraTargetPosition=[0, .1, 1], physicsClientId=self.id)
@@ -141,9 +141,10 @@ class LightSwitchEnv(AssistiveEnv):
 
 	def generate_target(self,index): 
 		self.target_index = index
+		# self.target_index = 1
 		# Place a switch on a wall
-		wall_index = index % 2
-		on_off = index // 2
+		wall_index = self.target_index % 2
+		on_off = self.target_index // 2
 
 		walls = [
 			(np.array([0,-1.1,1]),[0,0,0,1]),
@@ -154,10 +155,11 @@ class LightSwitchEnv(AssistiveEnv):
 		wall_collision = p.createCollisionShape(p.GEOM_BOX,halfExtents=[1,.1,1])
 		wall_visual = p.createVisualShape(p.GEOM_BOX,halfExtents=[1,.1,1])
 		self.wall = p.createMultiBody(basePosition=wall_pos,baseOrientation=wall_orient,baseCollisionShapeIndex=wall_collision,baseVisualShapeIndex=wall_visual,physicsClientId=self.id)
+		# self.wall = p.createMultiBody(basePosition=wall_pos,baseOrientation=wall_orient,baseVisualShapeIndex=wall_visual,physicsClientId=self.id)
 
 		wall_pos, wall_orient = p.getBasePositionAndOrientation(self.wall, physicsClientId=self.id)
-		# switch = np.array([0,.1,0])+np.array([.05,0,.05])*self.np_random.uniform(-1,1,3)
-		switch = np.array([0,.1,0])
+		switch = np.array([0,.1,0])+np.array([.05,0,.05])*self.np_random.uniform(-1,1,3)
+		# switch = np.array([0,.1,0])
 		switch_pos,switch_orient = p.multiplyTransforms(wall_pos, wall_orient, switch, p.getQuaternionFromEuler([-np.pi/2,0,0]), physicsClientId=self.id)
 		switch_scale = .0006
 		switch_file = 'on_switch.urdf' if on_off else 'off_switch.urdf'

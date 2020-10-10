@@ -7,8 +7,8 @@ from numpy.linalg import norm
 from .env import AssistiveEnv
 
 class FeedingEnv(AssistiveEnv):
-	def __init__(self, robot_type='pr2', human_control=False, success_dist=.05):
-		super(FeedingEnv, self).__init__(robot_type=robot_type, task='feeding', human_control=human_control, frame_skip=10, time_step=0.02, action_robot_len=7, action_human_len=(4 if human_control else 0), obs_robot_len=25, obs_human_len=(23 if human_control else 0))
+	def __init__(self, robot_type='pr2', human_control=False, success_dist=.05, frame_skip=10):
+		super(FeedingEnv, self).__init__(robot_type=robot_type, task='feeding', human_control=human_control, frame_skip=frame_skip, time_step=0.02, action_robot_len=7, action_human_len=(4 if human_control else 0), obs_robot_len=25, obs_human_len=(23 if human_control else 0))
 		self.observation_space = spaces.Box(-np.inf,np.inf,(15,), dtype=np.float32)
 		self.num_targets = 1
 		self.success_dist = success_dist
@@ -205,7 +205,7 @@ class FeedingEnv(AssistiveEnv):
 		self.targets = [self.target_pos]
 
 		sphere_collision = -1
-		sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=0.01, rgbaColor=[0, 1, 0, 1], physicsClientId=self.id)
+		sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=self.success_dist, rgbaColor=[0, 1, 0, 1], physicsClientId=self.id)
 		self.target = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=self.target_pos, useMaximalCoordinates=False, physicsClientId=self.id)
 
 		self.update_targets()

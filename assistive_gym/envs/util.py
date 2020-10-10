@@ -10,12 +10,11 @@ class Util:
         self.ik_rest_poses = {}
         self.np_random = np_random
 
-    def ik_random_restarts(self, body, target_joint, target_pos, target_orient, world_creation, robot_arm_joint_indices, robot_lower_limits, robot_upper_limits, ik_indices=range(29, 29+7), max_iterations=1000, max_ik_random_restarts=50, random_restart_threshold=0.01, half_range=False, step_sim=False, check_env_collisions=False):
+    def ik_random_restarts(self, body, target_joint, target_pos, target_orient, world_creation, robot_arm_joint_indices, robot_lower_limits, robot_upper_limits, best_ik_joints = None, ik_indices=range(29, 29+7), max_iterations=1000, max_ik_random_restarts=50, random_restart_threshold=0.01, half_range=False, step_sim=False, check_env_collisions=False):
         orient_orig = target_orient
-        best_ik_joints = None
         best_ik_distance = 0
         for r in range(max_ik_random_restarts):
-            target_joint_positions = self.ik(body, target_joint, target_pos, target_orient, ik_indices=ik_indices, max_iterations=max_iterations, half_range=half_range)
+            target_joint_positions = self.ik(body, target_joint, target_pos, target_orient, mean_rest_pose=best_ik_joints, ik_indices=ik_indices, max_iterations=max_iterations, half_range=half_range)
             world_creation.setup_robot_joints(body, robot_arm_joint_indices, robot_lower_limits, robot_upper_limits, randomize_joint_positions=False, default_positions=np.array(target_joint_positions), tool=None)
             if step_sim:
                 for _ in range(5):
@@ -52,7 +51,7 @@ class Util:
             return True, np.array(target_joint_positions)
         return False, np.array(target_joint_positions)
 
-    def ik(self, body, target_joint, target_pos, target_orient, ik_indices=range(29, 29+7), max_iterations=1000, half_range=False):
+    def ik(self, body, target_joint, target_pos, target_orient, mean_rest_pose=None, ik_indices=range(29, 29+7), max_iterations=1000, half_range=False):
         key = '%d_%d' % (body, target_joint)
         if key not in self.ik_lower_limits:
             self.ik_lower_limits[key] = []
@@ -79,7 +78,10 @@ class Util:
                         self.ik_joint_ranges[key].append((upper_limit - lower_limit)/2.0)
                     # self.ik_rest_poses[key].append((upper_limit + lower_limit)/2.0)
                     j_names.append([len(j_names)] + list(joint_info[:2]))
-        self.ik_rest_poses[key] = self.np_random.uniform(self.ik_lower_limits[key], self.ik_upper_limits[key]).tolist()
+        self.ik_rest_poses[key] = self.np_random.uniform(self.ik_lower_limits[key], self.ik_upper_limits[key])
+        if mean_rest_pose is not None:
+            self.ik_rest_poses[key][ik_indices] = np.clip(self.np_random.normal(mean_rest_pose,0.5),np.array(self.ik_lower_limits[key])[ik_indices], np.array(self.ik_upper_limits[key])[ik_indices])
+        self.ik_rest_poses[key] = self.ik_rest_poses[key].tolist()
         if target_orient is not None:
             ik_joint_poses = np.array(p.calculateInverseKinematics(body, target_joint, targetPosition=target_pos, targetOrientation=target_orient, lowerLimits=self.ik_lower_limits[key], upperLimits=self.ik_upper_limits[key], jointRanges=self.ik_joint_ranges[key], restPoses=self.ik_rest_poses[key], maxNumIterations=max_iterations, physicsClientId=self.id))
         else:

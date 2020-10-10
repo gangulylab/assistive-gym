@@ -7,8 +7,8 @@ from numpy.linalg import norm
 from .env import AssistiveEnv
 
 class LaptopEnv(AssistiveEnv):
-	def __init__(self, robot_type='jaco', success_dist=.05):
-		super(LaptopEnv, self).__init__(robot_type=robot_type, task='laptop', frame_skip=5, time_step=0.02, action_robot_len=7, obs_robot_len=18)
+	def __init__(self, robot_type='jaco', success_dist=.05, frame_skip=5):
+		super(LaptopEnv, self).__init__(robot_type=robot_type, task='laptop', frame_skip=frame_skip, time_step=0.02, action_robot_len=7, obs_robot_len=18)
 		self.observation_space = spaces.Box(-np.inf,np.inf,(18,), dtype=np.float32)
 		self.num_targets = 12
 		self.success_dist = success_dist
@@ -26,9 +26,9 @@ class LaptopEnv(AssistiveEnv):
 		new_laptop_pos = np.array(p.getBasePositionAndOrientation(self.laptop, physicsClientId=self.id)[0])
 		self.laptop_move = np.linalg.norm(self.laptop_pos - new_laptop_pos)
 
-		tool_force, tool_force_at_target, target_contact_pos, contact_laptop_count = self.get_total_force()
-		if target_contact_pos is not None:
-			target_contact_pos = np.array(target_contact_pos)
+		# tool_force, tool_force_at_target, target_contact_pos, contact_laptop_count = self.get_total_force()
+		# if target_contact_pos is not None:
+		# 	target_contact_pos = np.array(target_contact_pos)
 		# task_success = target_contact_pos is not None\
 			# and self.laptop_move < .1
 			# and tool_force_at_target < 10\
@@ -95,6 +95,7 @@ class LaptopEnv(AssistiveEnv):
 		screen_pos = np.array(p.getLinkState(self.laptop, 0, computeForwardKinematics=True,physicsClientId=self.id)[0])
 
 		# robot_obs = np.concatenate([tool_pos-torso_pos, tool_orient, robot_joint_positions, forces]).ravel()
+		# print(robot_joint_positions)
 		robot_obs = np.concatenate([tool_pos, tool_orient, robot_joint_positions, screen_pos, forces]).ravel()
 		return robot_obs.ravel()
 
@@ -123,10 +124,13 @@ class LaptopEnv(AssistiveEnv):
 		laptop_pos = self.laptop_pos = table_pos+np.array([0,.2,.7])+np.array([.3,.1,0])*self.np_random.uniform(-1,1,3)
 		self.laptop = p.loadURDF(os.path.join(self.world_creation.directory, 'laptop', 'laptop.urdf'), basePosition=laptop_pos, baseOrientation=p.getQuaternionFromEuler([0, 0, -np.pi/2], physicsClientId=self.id),\
 			 physicsClientId=self.id, globalScaling=laptop_scale, useFixedBase=True)
+		# sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=.01, rgbaColor=[1, 1, 1, 1], physicsClientId=self.id)
+		# self.laptop = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=-1, baseVisualShapeIndex=sphere_visual, basePosition=laptop_pos, useMaximalCoordinates=False, physicsClientId=self.id)
 
 		"""set up target and initial robot position"""
 		self.generate_target(self.np_random.choice(self.num_targets))
-		self.init_robot_arm(laptop_pos + np.array([0,0,.4]) + self.np_random.uniform(-0.05, 0.05, size=3))
+		# self.init_robot_arm(np.array([-0.3, -.3, 1]) + self.np_random.uniform(-0.05, 0.05, size=3))
+		self.init_robot_arm(laptop_pos + np.array([-.1,0,.4]))
 
 		"""configure pybullet"""
 		p.setGravity(0, 0, -9.81, physicsClientId=self.id)
@@ -134,19 +138,21 @@ class LaptopEnv(AssistiveEnv):
 		p.setGravity(0, 0, 0, body=self.laptop, physicsClientId=self.id)
 		p.setPhysicsEngineParameter(numSubSteps=5, numSolverIterations=10, physicsClientId=self.id)
 		# Enable rendering
-		p.resetDebugVisualizerCamera(cameraDistance= .6, cameraYaw=180, cameraPitch=-45, cameraTargetPosition=[0, .1, 1], physicsClientId=self.id)
+		p.resetDebugVisualizerCamera(cameraDistance= .6, cameraYaw=150, cameraPitch=-60, cameraTargetPosition=[-.1, 0, .9], physicsClientId=self.id)
 		p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1, physicsClientId=self.id)
 
 		return self._get_obs([0])
 	
 	def init_start_pos(self,og_init_pos):
 		"""exchange this function for curriculum"""
-		return og_init_pos
+		return og_init_pos + self.np_random.uniform([-0.3,-0.3,0], [0.3,0.3,0], size=3)
 
 	def init_robot_arm(self,og_init_pos):
 		init_pos = self.init_pos = self.init_start_pos(og_init_pos)
 		init_orient = p.getQuaternionFromEuler(np.array([0, np.pi/2.0, 0]), physicsClientId=self.id)
-		self.util.ik_random_restarts(self.robot, 11, init_pos, init_orient, self.world_creation, self.robot_left_arm_joint_indices, self.robot_lower_limits, self.robot_upper_limits, ik_indices=[0, 1, 2, 3, 4, 5, 6], max_iterations=100, max_ik_random_restarts=10, random_restart_threshold=0.03, step_sim=True)
+		best_ik_joints = np.array([-1.0, 3.0, 0.5, 4.0, 0.0, 1.5, 1.0])
+		self.util.ik_random_restarts(self.robot, 11, init_pos, init_orient, self.world_creation, self.robot_left_arm_joint_indices, self.robot_lower_limits, self.robot_upper_limits,
+									best_ik_joints=best_ik_joints, ik_indices=[0, 1, 2, 3, 4, 5, 6], max_iterations=100, max_ik_random_restarts=10, random_restart_threshold=0.03, step_sim=True)
 		self.world_creation.set_gripper_open_position(self.robot, position=1, left=True, set_instantly=True)
 		self.tool = self.world_creation.init_tool(self.robot, mesh_scale=[0.001]*3, pos_offset=[0, 0, 0.02], orient_offset=p.getQuaternionFromEuler([0, -np.pi/2.0, 0], physicsClientId=self.id), maximal=False)
 
