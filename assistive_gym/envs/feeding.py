@@ -185,12 +185,8 @@ class FeedingEnv(AssistiveEnv):
 
 		return self._get_obs([0], [0, 0])
 
-	def init_start_pos(self,og_init_pos):
-		"""exchange this function for curriculum"""
-		return og_init_pos
-
 	def init_robot_arm(self,og_init_pos):
-		init_pos = self.init_pos = self.init_start_pos(og_init_pos)
+		init_pos = self.init_pos = og_init_pos
 		init_orient = p.getQuaternionFromEuler(np.array([np.pi/2.0, 0, np.pi/2.0]), physicsClientId=self.id)
 		self.util.ik_random_restarts(self.robot, 8, init_pos, init_orient, self.world_creation, self.robot_right_arm_joint_indices, self.robot_lower_limits, self.robot_upper_limits, ik_indices=[0, 1, 2, 3, 4, 5, 6], max_iterations=1000, max_ik_random_restarts=40, random_restart_threshold=0.01, step_sim=True, check_env_collisions=True)
 		self.world_creation.set_gripper_open_position(self.robot, position=1.33, left=False, set_instantly=True)

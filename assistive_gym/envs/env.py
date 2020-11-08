@@ -30,6 +30,7 @@ class AssistiveEnv(gym.Env):
 
         self.configp = configparser.ConfigParser()
         self.configp.read(os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'config.ini'))
+        self.configp = {s:dict(self.configp.items(s)) for s in self.configp.sections()}
         # Human preference weights
         self.C_v = self.config('velocity_weight', 'human_preferences')
         self.C_f = self.config('force_nontarget_weight', 'human_preferences')
@@ -419,14 +420,14 @@ class AssistiveEnv(gym.Env):
                 p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0)
                 p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
         else:
-            if width is None:
-                # return np.reshape(p.getCameraImage(width=self.width, height=self.height, renderer=p.ER_BULLET_HARDWARE_OPENGL, physicsClientId=self.id)[2], (self.height, self.width, 4))[:, :, :3]
-                return np.reshape(p.getCameraImage(width=self.width, height=self.height, viewMatrix=self.viewMatrix, physicsClientId=self.id)[2], (self.height, self.width, 4))[:, :, :3]
-            else:
-                # image = np.reshape(p.getCameraImage(width=width, height=height, renderer=p.ER_BULLET_HARDWARE_OPENGL, physicsClientId=self.id)[2], (height, width, 4))[:, :, :3]
-                image = np.reshape(p.getCameraImage(width=width, height=height, viewMatrix=self.viewMatrix, physicsClientId=self.id)[2], (height, width, 4))[:, :, :3]
-                # image = image.transpose((2,0,1))
-                return image
-                # return np.reshape(p.getCameraImage(width=width, height=height, physicsClientId=self.id)[2], (height, width, 4))[:, :, :3]
-        
+            # if width is None:
+            #     # return np.reshape(p.getCameraImage(width=self.width, height=self.height, renderer=p.ER_BULLET_HARDWARE_OPENGL, physicsClientId=self.id)[2], (self.height, self.width, 4))[:, :, :3]
+            #     return np.reshape(p.getCameraImage(width=self.width, height=self.height, viewMatrix=self.viewMatrix, physicsClientId=self.id)[2], (self.height, self.width, 4))[:, :, :3]
+            # else:
+            #     # image = np.reshape(p.getCameraImage(width=width, height=height, renderer=p.ER_BULLET_HARDWARE_OPENGL, physicsClientId=self.id)[2], (height, width, 4))[:, :, :3]
+            #     image = np.reshape(p.getCameraImage(width=width, height=height, viewMatrix=self.viewMatrix, physicsClientId=self.id)[2], (height, width, 4))[:, :, :3]
+            #     # image = image.transpose((2,0,1))
+            #     return image
+            #     # return np.reshape(p.getCameraImage(width=width, height=height, physicsClientId=self.id)[2], (height, width, 4))[:, :, :3]
+            pass
 

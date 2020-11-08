@@ -160,30 +160,34 @@ class LightSwitchEnv(AssistiveEnv):
 		wall_pos, wall_orient = p.getBasePositionAndOrientation(self.wall, physicsClientId=self.id)
 		switch = np.array([0,.1,0])+np.array([.05,0,.05])*self.np_random.uniform(-1,1,3)
 		# switch = np.array([0,.1,0])
-		switch_pos,switch_orient = p.multiplyTransforms(wall_pos, wall_orient, switch, p.getQuaternionFromEuler([-np.pi/2,0,0]), physicsClientId=self.id)
-		switch_scale = .0006
-		switch_file = 'on_switch.urdf' if on_off else 'off_switch.urdf'
+		switch_pos,switch_orient = p.multiplyTransforms(wall_pos, wall_orient, switch, p.getQuaternionFromEuler([0,0,0]), physicsClientId=self.id)
+		# switch_scale = .0006
+		switch_scale = .1
+		# switch_file = 'on_switch.urdf' if on_off else 'off_switch.urdf'
+		switch_file = 'switch.urdf'
 		self.switch = p.loadURDF(os.path.join(self.world_creation.directory, 'light_switch', switch_file), basePosition=switch_pos, useFixedBase=True, baseOrientation=switch_orient,\
 			 physicsClientId=self.id,globalScaling=switch_scale)
+		p.setCollisionFilterPair(self.switch, self.switch, 0, 1, 0, physicsClientId=self.id)
+		p.setCollisionFilterPair(self.switch, self.switch, 1, 0, 0, physicsClientId=self.id)
 
 		self.targets = [p.multiplyTransforms(switch_pos, switch_orient, target_pos, [0, 0, 0, 1])[0] for target_pos in [[0,-.027,.017],[0,.027,.017]]\
 						for switch_pos,switch_orient in [p.multiplyTransforms(wall_pos, wall_orient, switch, p.getQuaternionFromEuler([-np.pi/2,0,0]))\
 						for wall_pos,wall_orient in walls]]
 		self.target_pos = np.array(self.targets[self.target_index])
 
-		target_left = [p.multiplyTransforms(switch_pos, switch_orient, target_pos, [0, 0, 0, 1])[0] for target_pos in [[.03,-.027,.017],[.03,.027,.017]]\
-						for switch_pos,switch_orient in [p.multiplyTransforms(wall_pos, wall_orient, switch, p.getQuaternionFromEuler([-np.pi/2,0,0]))\
-						for wall_pos,wall_orient in walls]]
-		target_right = [p.multiplyTransforms(switch_pos, switch_orient, target_pos, [0, 0, 0, 1])[0] for target_pos in [[-.03,-.027,.017],[-.03,.027,.017]]\
-						for switch_pos,switch_orient in [p.multiplyTransforms(wall_pos, wall_orient, switch, p.getQuaternionFromEuler([-np.pi/2,0,0]))\
-						for wall_pos,wall_orient in walls]]
-		self.valid_pos = [self.target_pos,np.array(target_left[self.target_index]),np.array(target_right[self.target_index])]
+		# target_left = [p.multiplyTransforms(switch_pos, switch_orient, target_pos, [0, 0, 0, 1])[0] for target_pos in [[.03,-.027,.017],[.03,.027,.017]]\
+		# 				for switch_pos,switch_orient in [p.multiplyTransforms(wall_pos, wall_orient, switch, p.getQuaternionFromEuler([-np.pi/2,0,0]))\
+		# 				for wall_pos,wall_orient in walls]]
+		# target_right = [p.multiplyTransforms(switch_pos, switch_orient, target_pos, [0, 0, 0, 1])[0] for target_pos in [[-.03,-.027,.017],[-.03,.027,.017]]\
+		# 				for switch_pos,switch_orient in [p.multiplyTransforms(wall_pos, wall_orient, switch, p.getQuaternionFromEuler([-np.pi/2,0,0]))\
+		# 				for wall_pos,wall_orient in walls]]
+		# self.valid_pos = [self.target_pos,np.array(target_left[self.target_index]),np.array(target_right[self.target_index])]
 		
-		sphere_collision = -1
-		sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=self.success_dist, rgbaColor=[0, 1, 1, 1], physicsClientId=self.id)
-		# self.target = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=self.target_pos, useMaximalCoordinates=False, physicsClientId=self.id)
-		self.valids = [p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=target_pos, useMaximalCoordinates=False, physicsClientId=self.id)\
-						for target_pos in self.valid_pos]
+		# sphere_collision = -1
+		# sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=self.success_dist, rgbaColor=[0, 1, 1, 1], physicsClientId=self.id)
+		# # self.target = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=self.target_pos, useMaximalCoordinates=False, physicsClientId=self.id)
+		# self.valids = [p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=target_pos, useMaximalCoordinates=False, physicsClientId=self.id)\
+		# 				for target_pos in self.valid_pos]
 
 		self.update_targets()
 
