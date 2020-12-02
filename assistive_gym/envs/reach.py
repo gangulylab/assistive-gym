@@ -15,7 +15,6 @@ class ReachEnv(AssistiveEnv):
 		self.num_targets = 1
 		self.path_type = path_type
 		self.path_length=path_length
-		# self.success_dist = 15/200
 		self.success_dist = success_dist
 
 	def step(self, action):
@@ -44,11 +43,12 @@ class ReachEnv(AssistiveEnv):
 			'task_success': self.task_success,
 			'distance_to_target': new_dist,
 			'diff_distance': reward_distance,
-			# 'action_size': -reward_action,
+			'action_size': -reward_action,
 			'cos_error': cos_error,
 			# 'trajectory': new_traj,
 			# 'old_tool_pos': old_tool_pos,
 			'frachet': self.discrete_frachet,
+			'fraction_t': self.t/self.total_t,
 		}
 		done = False
 
@@ -137,13 +137,17 @@ class ReachEnv(AssistiveEnv):
 	def generate_target(self,index): 
 		sphere_collision = -1
 		sphere_visual = p.createVisualShape(shapeType=p.GEOM_SPHERE, radius=0.01, rgbaColor=[0, 1, 1, 1], physicsClientId=self.id)
-		self.target = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=[0,0,0], useMaximalCoordinates=False, physicsClientId=self.id)
+		self.target_pos = self.tool_pos
+		self.target = p.createMultiBody(baseMass=0.0, baseCollisionShapeIndex=sphere_collision, baseVisualShapeIndex=sphere_visual, basePosition=self.target_pos, useMaximalCoordinates=False, physicsClientId=self.id)
 
 		self.t = 0
+		self.total_t = 0
 		self.update_targets()
 
 	def update_targets(self):
-		self.t += 1
+		self.total_t += 1
+		if norm(self.tool_pos-self.target_pos) <= self.success_dist:
+			self.t += 1
 		target_pos = self.param_target(self.t)
 		self.target_pos = np.array(target_pos)
 		self.targets = [self.target_pos]

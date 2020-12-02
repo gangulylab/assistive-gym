@@ -139,14 +139,14 @@ class FeedingEnv(AssistiveEnv):
 
 		"""place feeding evironment objects"""
 		# Place a bowl of food on a table
-		# self.table = p.loadURDF(os.path.join(self.world_creation.directory, 'table', 'table_tall.urdf'), basePosition=[0.35, -0.9, 0], baseOrientation=p.getQuaternionFromEuler([0, 0, 0], physicsClientId=self.id), physicsClientId=self.id)
-		# self.bowl_scale = 0.75
-		# visual_filename = os.path.join(self.world_creation.directory, 'dinnerware', 'bowl_reduced_compressed.obj')
-		# collision_filename = os.path.join(self.world_creation.directory, 'dinnerware', 'bowl_vhacd.obj')
-		# bowl_visual = p.createVisualShape(shapeType=p.GEOM_MESH, fileName=visual_filename, meshScale=[self.bowl_scale]*3, physicsClientId=self.id)
-		# bowl_collision = p.createCollisionShape(shapeType=p.GEOM_MESH, fileName=collision_filename, meshScale=[self.bowl_scale]*3, physicsClientId=self.id)
+		self.table = p.loadURDF(os.path.join(self.world_creation.directory, 'table', 'table_tall.urdf'), basePosition=[0.35, -0.9, 0], baseOrientation=p.getQuaternionFromEuler([0, 0, 0], physicsClientId=self.id), physicsClientId=self.id)
+		self.bowl_scale = 0.75
+		visual_filename = os.path.join(self.world_creation.directory, 'dinnerware', 'bowl_reduced_compressed.obj')
+		collision_filename = os.path.join(self.world_creation.directory, 'dinnerware', 'bowl_vhacd.obj')
+		bowl_visual = p.createVisualShape(shapeType=p.GEOM_MESH, fileName=visual_filename, meshScale=[self.bowl_scale]*3, physicsClientId=self.id)
+		bowl_collision = p.createCollisionShape(shapeType=p.GEOM_MESH, fileName=collision_filename, meshScale=[self.bowl_scale]*3, physicsClientId=self.id)
 		bowl_pos = np.array([-0.15, -0.55, 0.75]) + np.array([self.np_random.uniform(-0.05, 0.05), self.np_random.uniform(-0.05, 0.05), 0])
-		# self.bowl = p.createMultiBody(baseMass=0.1, baseCollisionShapeIndex=bowl_collision, baseVisualShapeIndex=bowl_visual, basePosition=bowl_pos, baseOrientation=p.getQuaternionFromEuler([np.pi/2.0, 0, 0], physicsClientId=self.id), baseInertialFramePosition=[0, 0.04*self.bowl_scale, 0], useMaximalCoordinates=False, physicsClientId=self.id)
+		self.bowl = p.createMultiBody(baseMass=0.1, baseCollisionShapeIndex=bowl_collision, baseVisualShapeIndex=bowl_visual, basePosition=bowl_pos, baseOrientation=p.getQuaternionFromEuler([np.pi/2.0, 0, 0], physicsClientId=self.id), baseInertialFramePosition=[0, 0.04*self.bowl_scale, 0], useMaximalCoordinates=False, physicsClientId=self.id)
 		
 		
 		"""set up target and initial robot position (objects set up with target)"""
@@ -163,25 +163,25 @@ class FeedingEnv(AssistiveEnv):
 		p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1, physicsClientId=self.id)
 		
 		"""generate food"""
-		# spoon_pos, spoon_orient = p.getBasePositionAndOrientation(self.spoon, physicsClientId=self.id)
-		# spoon_pos = np.array(spoon_pos)
-		# food_radius = 0.005
-		# food_collision = p.createCollisionShape(p.GEOM_SPHERE, radius=food_radius, physicsClientId=self.id)
-		# food_visual = -1
-		# food_mass = 0.001
-		# food_count = 2*2*2
-		# batch_positions = []
-		# for i in range(2):
-		# 	for j in range(2):
-		# 		for k in range(2):
-		# 			batch_positions.append(np.array([i*2*food_radius-0.005, j*2*food_radius, k*2*food_radius+0.02]) + spoon_pos)
-		# last_food_id = p.createMultiBody(baseMass=food_mass, baseCollisionShapeIndex=food_collision, baseVisualShapeIndex=food_visual, basePosition=[0, 0, 0], useMaximalCoordinates=False, batchPositions=batch_positions, physicsClientId=self.id)
-		# self.foods = list(range(last_food_id-food_count+1, last_food_id+1))
-		# self.foods_hit_person = []
-		# self.total_food_count = len(self.foods)
-		# # Drop food in the spoon
-		# for _ in range(100):
-		# 	p.stepSimulation(physicsClientId=self.id)
+		spoon_pos, spoon_orient = p.getBasePositionAndOrientation(self.spoon, physicsClientId=self.id)
+		spoon_pos = np.array(spoon_pos)
+		food_radius = 0.005
+		food_collision = p.createCollisionShape(p.GEOM_SPHERE, radius=food_radius, physicsClientId=self.id)
+		food_visual = -1
+		food_mass = 0.001
+		food_count = 2*2*2
+		batch_positions = []
+		for i in range(2):
+			for j in range(2):
+				for k in range(2):
+					batch_positions.append(np.array([i*2*food_radius-0.005, j*2*food_radius, k*2*food_radius+0.02]) + spoon_pos)
+		last_food_id = p.createMultiBody(baseMass=food_mass, baseCollisionShapeIndex=food_collision, baseVisualShapeIndex=food_visual, basePosition=[0, 0, 0], useMaximalCoordinates=False, batchPositions=batch_positions, physicsClientId=self.id)
+		self.foods = list(range(last_food_id-food_count+1, last_food_id+1))
+		self.foods_hit_person = []
+		self.total_food_count = len(self.foods)
+		# Drop food in the spoon
+		for _ in range(100):
+			p.stepSimulation(physicsClientId=self.id)
 
 		return self._get_obs([0], [0, 0])
 

@@ -15,14 +15,14 @@
     <visual>
       <origin xyz="0 0 0" rpy = "0 0 0"/>
       <geometry>
-			  <mesh filename="case1.obj"/>
+			  <mesh filename="case1.obj" scale="1 1 .75"/>
       </geometry>
       <material name="Dark Grey"/>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy = "0 0 0"/>
       <geometry>
-			  <mesh filename="case1.obj"/>
+			  <mesh filename="case1.obj" scale="1 1 .75"/>
       </geometry>
     </collision>
     
@@ -33,24 +33,24 @@
       <inertia ixx="1" ixy="0" ixz="0" iyy="1" iyz="0" izz="1"/>
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 .27 0" rpy="0 0 0"/>
       <geometry>
-			  <mesh filename="switch.obj"/>
+			  <mesh filename="switch.obj" scale="5 5 3"/>
       </geometry>
       <material name="Light Grey"/>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 .27 0" rpy="0 0 0"/>
       <geometry>
-			  <mesh filename="switch.obj"/>
+			  <mesh filename="switch.obj" scale="5 5 3"/>
       </geometry>
     </collision>
   </link>
   <joint name="hinge" type="revolute">
       <parent link="case_link"/>
       <child link="button_link"/>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
-      <axis xyz="0 1 0"/>
-      <limit lower="0" upper="3.14" effort="100" velocity="100"/>
+      <origin xyz="0 -.3 0" rpy="0 0 0"/>
+      <axis xyz="1 0 0"/>
+      <limit lower="-1" upper=".1" effort="100" velocity="100"/>
   </joint>
 </robot>

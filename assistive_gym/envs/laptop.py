@@ -19,7 +19,7 @@ class LaptopEnv(AssistiveEnv):
 		old_traj = self.target_pos - old_tool_pos
 
 		self.take_step(action, robot_arm='left', gains=self.config('robot_gains'), forces=self.config('robot_forces'))
-		self.move_laptop_lid()
+		self.move_lever()
 
 		new_dist = np.linalg.norm(self.target_pos - self.tool_pos)
 		new_traj = self.tool_pos - old_tool_pos
@@ -36,7 +36,6 @@ class LaptopEnv(AssistiveEnv):
 			# and tool_force_at_target < 10\
 
 		lever_angle = p.getJointStates(self.laptop, jointIndices=[0], physicsClientId=self.id)[0][0]
-		print(lever_angle)
 		task_success = norm(self.tool_pos-self.target_pos) < self.success_dist and lever_angle > 1.5
 		self.task_success += task_success
 		obs = self._get_obs([0])
@@ -61,10 +60,9 @@ class LaptopEnv(AssistiveEnv):
 
 		return obs, reward, done, info
 
-	def move_laptop_lid(self):
+	def move_lever(self):
 		robot_joint_position = p.getJointStates(self.laptop, jointIndices=[0], physicsClientId=self.id)[0][0]
 		contacts = p.getContactPoints(bodyA=self.tool, bodyB=self.laptop, linkIndexB=1, physicsClientId=self.id)
-		print(robot_joint_position)
 		if len(contacts) == 0:
 			return
 		positive = contacts[0][7][1] < 0
@@ -143,13 +141,11 @@ class LaptopEnv(AssistiveEnv):
 		laptop_pos = self.laptop_pos = table_pos+np.array([0,.2,.7])+np.array([.3,.1,0])*self.np_random.uniform(-1,1,3)
 		self.laptop = p.loadURDF(os.path.join(self.world_creation.directory, 'laptop', 'laptop.urdf'), basePosition=laptop_pos, baseOrientation=p.getQuaternionFromEuler([0, 0, -np.pi/2], physicsClientId=self.id),\
 			 physicsClientId=self.id, globalScaling=laptop_scale, useFixedBase=True)
-		p.setCollisionFilterPair(self.laptop, self.laptop, 0, 1, 0, physicsClientId=self.id)
-		p.setCollisionFilterPair(self.laptop, self.laptop, 1, 0, 0, physicsClientId=self.id)
+		p.setCollisionFilterPair(self.laptop, self.laptop, 0, -1, 0, physicsClientId=self.id)
 		p.resetJointState(self.laptop, jointIndex=0, targetValue=.3, physicsClientId=self.id)
 
 		"""set up target and initial robot position"""
 		self.generate_target(self.np_random.choice(self.num_targets))
-		# self.init_robot_arm(np.array([-0.3, -.3, 1]) + self.np_random.uniform(-0.05, 0.05, size=3))
 		self.init_robot_arm(laptop_pos + np.array([-.1,0,.4]))
 
 		"""configure pybullet"""
@@ -176,7 +172,6 @@ class LaptopEnv(AssistiveEnv):
 		self.target_index = index
 		lbody_pos, lbody_orient = p.getBasePositionAndOrientation(self.laptop, physicsClientId=self.id)
 		buttons = self.buttons = np.array([0,0,.05]) + np.array(list(product(np.linspace(-.1,.1,3),np.linspace(-.15,.15,4),[0])))
-		# self.target_button = np.array([0, 0, .05]) + np.array([.1, .15, 0])*self.np_random.uniform(-1,1,3)
 		target_pos, target_orient = p.multiplyTransforms(lbody_pos, lbody_orient, buttons[self.target_index], [0, 0, 0, 1], physicsClientId=self.id)
 		
 		lbody_pos, lbody_orient = p.getBasePositionAndOrientation(self.laptop, physicsClientId=self.id)
@@ -195,6 +190,11 @@ class LaptopEnv(AssistiveEnv):
 
 	def update_targets(self):
 		pass
+		# head_pos, head_orient = p.getLinkState(self.human, 23, computeForwardKinematics=True, physicsClientId=self.id)[:2]
+		# target_pos, target_orient = p.multiplyTransforms(head_pos, head_orient, self.mouth_pos, [0, 0, 0, 1], physicsClientId=self.id)
+		# self.target_pos = np.array(target_pos)
+		# self.targets = [self.target_pos]
+		# p.resetBasePositionAndOrientation(self.target, self.target_pos, [0, 0, 0, 1], physicsClientId=self.id)
 
 	@property
 	def tool_pos(self):
