@@ -15,9 +15,9 @@ class LightSwitchEnv(AssistiveEnv):
 		# self.observation_space = spaces.Box(-np.inf,np.inf,(18,), dtype=np.float32)
 		self.observation_space = spaces.Box(-np.inf,np.inf,(15,), dtype=np.float32)
 		self.success_dist = success_dist
-		self.num_targets = 6
-		# self.messages = ['0 0 0',]
-		self.messages = ['0 1 0','0 1 1','0 0 0',]
+		self.num_targets = 2
+		self.messages = ['0 0 0',]
+		# self.messages = ['0 1 0','0 1 1','0 0 0',]
 		self.switch_p = 1
 
 	def step(self, action):
@@ -33,6 +33,7 @@ class LightSwitchEnv(AssistiveEnv):
 			else:
 				angle_dirs[i],angle_diff = self.move_lever(switch,self.initial_string[i])
 
+			### Debugging: auto flip switch ###
 			tool_pos1 = np.array(p.getLinkState(self.tool, 0, computeForwardKinematics=True, physicsClientId=self.id)[0])
 			if norm(self.tool_pos-self.target_pos1[i]) < .07 or norm(tool_pos1-self.target_pos1[i]) < .1:
 				if self.target_string[i] == 0:
@@ -78,14 +79,9 @@ class LightSwitchEnv(AssistiveEnv):
 
 		info = {
 			'task_success': self.task_success,
-			# 'distance_to_target': new_dist,
-			# 'diff_distance': reward_distance,
-			# 'action_size': -reward_action,
-			# 'cos_error': cos_error,
 			'num_correct': np.count_nonzero(np.equal(self.target_string,self.current_string)),
 			'angle_dir': angle_dirs,
 			'angle_diff': lever_angle_diff,
-			# 'trajectory': new_traj,
 			'old_tool_pos': old_tool_pos,
 			'ineff_contact': bad_contact_count,
 			'target_index': self.target_index,
@@ -165,7 +161,8 @@ class LightSwitchEnv(AssistiveEnv):
 		self.human_upper_limits = np.array([])
 
 		"""set up target and initial robot position (objects set up with target)"""
-		self.generate_target(self.np_random.choice(self.num_targets))
+		self.set_target_index() # instance override in demos
+		self.generate_target()
 		self.init_robot_arm(np.zeros(3))
 		# self.init_robot_arm(np.array([-0.2, -.5, 1]) + self.np_random.uniform(-0.05, 0.05, size=3))
 
@@ -198,8 +195,10 @@ class LightSwitchEnv(AssistiveEnv):
 		self.world_creation.set_gripper_open_position(self.robot, position=1, left=True, set_instantly=True)
 		self.tool = self.world_creation.init_tool(self.robot, mesh_scale=[0.001]*3, pos_offset=[0, 0, 0.02], orient_offset=p.getQuaternionFromEuler([0, -np.pi/2.0, 0], physicsClientId=self.id), maximal=False)
 
-	def generate_target(self,index): 
-		self.target_index = index
+	def set_target_index(self):
+		self.target_index = self.np_random.choice(self.num_targets)
+
+	def generate_target(self): 
 		# Place a switch on a wall
 		wall_index = self.target_index % 2
 		walls = [

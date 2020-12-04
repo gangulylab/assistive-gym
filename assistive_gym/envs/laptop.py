@@ -26,14 +26,6 @@ class LaptopEnv(AssistiveEnv):
 		cos_error = np.dot(old_traj,new_traj)/(norm(old_traj)*norm(new_traj))
 		new_laptop_pos = np.array(p.getBasePositionAndOrientation(self.laptop, physicsClientId=self.id)[0])
 		self.laptop_move = np.linalg.norm(self.laptop_pos - new_laptop_pos)
-		
-
-		# tool_force, tool_force_at_target, target_contact_pos, contact_laptop_count = self.get_total_force()
-		# if target_contact_pos is not None:
-		# 	target_contact_pos = np.array(target_contact_pos)
-		# task_success = target_contact_pos is not None\
-			# and self.laptop_move < .1
-			# and tool_force_at_target < 10\
 
 		lever_angle = p.getJointStates(self.laptop, jointIndices=[0], physicsClientId=self.id)[0][0]
 		task_success = norm(self.tool_pos-self.target_pos) < self.success_dist and lever_angle > 1.5
@@ -41,9 +33,8 @@ class LaptopEnv(AssistiveEnv):
 		obs = self._get_obs([0])
 
 		reward_distance = old_dist - new_dist
-		reward_action = -np.linalg.norm(action) # Penalize actions
-		reward = np.dot([1,.01,1],
-			[reward_distance, reward_action, task_success])
+		reward = np.dot([1,1], # ignored in user penalty setting
+			[reward_distance, task_success])
 
 		info = {
 			'task_success': self.task_success,
@@ -79,7 +70,7 @@ class LaptopEnv(AssistiveEnv):
 		screen_contact_pos = None
 		for c in p.getContactPoints(bodyA=self.tool, physicsClientId=self.id):
 			tool_force += c[9]
-		for c in p.getContactPoints(bodyA=self.tool, bodyB=self.laptop, linkIndexB=0, physicsClientId=self.id):
+		for c in p.getContactPoints(bodyA=self.tool, bodyB=self.laptop, physicsClientId=self.id):
 			linkA = c[3]
 			contact_position = c[6]
 			# Enforce that contact is close to the target location
@@ -88,10 +79,6 @@ class LaptopEnv(AssistiveEnv):
 				target_contact_pos = contact_position
 			else:
 				contact_laptop_count += 1
-		for c in p.getContactPoints(bodyA=self.tool, bodyB=self.laptop, linkIndexB=1, physicsClientId=self.id):
-			linkA = c[3]
-			contact_position = c[6]
-			contact_laptop_count += 1
 		for c in p.getContactPoints(bodyA=self.robot, bodyB=self.laptop, physicsClientId=self.id):
 			linkA = c[3]
 			contact_position = c[6]
@@ -113,7 +100,7 @@ class LaptopEnv(AssistiveEnv):
 
 		# robot_obs = np.concatenate([tool_pos-torso_pos, tool_orient, robot_joint_positions, screen_pos, forces]).ravel()
 		# print(robot_joint_positions)
-		robot_obs = np.concatenate([tool_pos, tool_orient, robot_joint_positions, forces, lever_angle]).ravel()
+		robot_obs = np.concatenate([tool_pos, tool_orient, robot_joint_positions, forces]).ravel()
 		return robot_obs.ravel()
 
 	def reset(self):
